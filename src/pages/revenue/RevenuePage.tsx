@@ -3,20 +3,20 @@ import type { TableColumnsType } from 'antd'
 
 type RevenueDetailRecord = {
   key: string
-  source: string
+  uid: string
   time: string
   income: number
 }
 
 const revenueDetailData: RevenueDetailRecord[] = [
-  { key: '1', source: '微信收款', time: '2026-05-09 12:18', income: 62 },
-  { key: '2', source: '微信收款', time: '2026-05-09 11:42', income: 89 },
-  { key: '3', source: '微信收款', time: '2026-05-09 10:36', income: 128 },
-  { key: '4', source: '微信退款', time: '2026-05-09 09:24', income: -18 },
+  { key: '1', uid: '11111', time: '2026-05-09 12:18', income: 62 },
+  { key: '2', uid: '2222', time: '2026-05-09 11:42', income: 89 },
+  { key: '3', uid: '33333', time: '2026-05-09 10:36', income: 128 },
+  { key: '4', uid: '4444', time: '2026-05-09 09:24', income: -18 },
 ]
 
 const revenueColumns: TableColumnsType<RevenueDetailRecord> = [
-  { title: '来源', dataIndex: 'source',width:20},
+  { title: '消费者UID', dataIndex: 'uid',width:20},
   {
     title: '时间',
     dataIndex: 'time',
