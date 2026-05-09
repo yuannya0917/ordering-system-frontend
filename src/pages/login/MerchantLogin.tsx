@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { login } from '../../api/login'
 import './MerchantLogin.css'
 
 type LoginFormValues = {
@@ -8,24 +9,33 @@ type LoginFormValues = {
   password: string
 }
 
-const MERCHANT_ACCOUNT = 'merchant'
-const MERCHANT_PASSWORD = '123456'
-
 function MerchantLogin() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (values: LoginFormValues) => {
-    if (
-      values.account === MERCHANT_ACCOUNT &&
-      values.password === MERCHANT_PASSWORD
-    ) {
+  const handleSubmit = async (values: LoginFormValues) => {
+    setError('')
+    setLoading(true)
+
+    try {
+      const result = await login({
+        userId: values.account,
+        userPassword: values.password,
+      })
+
+      if (result.userType !== 'admin') {
+        setError('当前账号不是商家账号')
+        return
+      }
+
       setError('')
       navigate('/home/users', { replace: true })
-      return
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : '账号或密码错误')
+    } finally {
+      setLoading(false)
     }
-
-    setError('账号或密码错误')
   }
 
   return (
@@ -82,14 +92,10 @@ function MerchantLogin() {
               />
             )}
 
-            <Button block htmlType="submit" type="primary">
+            <Button block htmlType="submit" type="primary" loading={loading}>
               登录
             </Button>
           </Form>
-
-          <Typography.Text className="login-tip">
-            测试账号：merchant / 123456
-          </Typography.Text>
         </Card>
       </section>
     </main>

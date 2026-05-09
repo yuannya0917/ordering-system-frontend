@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://10.100.187.202:8081/api'
+const DEFAULT_API_BASE_URL = '/api'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
@@ -18,7 +18,8 @@ type RequestOptions = Omit<RequestInit, 'body' | 'method'> & {
 }
 
 function buildUrl(path: string, params?: RequestOptions['params']) {
-  const url = new URL(path.startsWith('http') ? path : `${API_BASE_URL}${path}`)
+  const requestPath = path.startsWith('http') ? path : `${API_BASE_URL}${path}`
+  const url = new URL(requestPath, window.location.origin)
 
   Object.entries(params ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
