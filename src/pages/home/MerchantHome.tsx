@@ -4,27 +4,23 @@ import { useMemo } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import './MerchantHome.css'
 
-type MenuKey = 'users' | 'menu' | 'orders' | 'comments' | 'revenue'
+type MenuKey = 'users' | 'menu' | 'menu-cuisine' | 'orders' | 'comments' | 'revenue'
 
 const menuLabels: Record<MenuKey, string> = {
   users: '用户账户查询',
-  menu: '管理菜单页面',
+  menu: '管理菜单',
+  'menu-cuisine': '管理菜品',
   orders: '订单管理系统',
   comments: '评论管理系统',
   revenue: '查看营业额',
 }
 
-const menuItems: MenuProps['items'] = [
-  { key: 'users', label: menuLabels.users },
-  { key: 'menu', label: menuLabels.menu },
-  { key: 'orders', label: menuLabels.orders },
-  { key: 'comments', label: menuLabels.comments },
-  { key: 'revenue', label: menuLabels.revenue },
-]
-
 function getActiveKey(pathname: string): MenuKey {
-  const current = pathname.split('/').pop()
+  if (pathname.endsWith('/home/menu/cuisine')) {
+    return 'menu-cuisine'
+  }
 
+  const current = pathname.split('/').pop()
   if (
     current === 'users' ||
     current === 'menu' ||
@@ -42,7 +38,33 @@ function MerchantHome() {
   const navigate = useNavigate()
   const location = useLocation()
   const activeKey = useMemo(() => getActiveKey(location.pathname), [location.pathname])
+  const defaultOpenKeys = activeKey === 'menu' || activeKey === 'menu-cuisine' ? ['menu-page'] : []
+  const menuItems = useMemo<MenuProps['items']>(
+    () => [
+      { key: 'users', label: menuLabels.users },
+      {
+        key: 'menu-page',
+        label: <span onClick={() => navigate('/home/menu')}>管理菜单页面</span>,
+        children: [
+          { key: 'menu', label: menuLabels.menu },
+          { key: 'menu-cuisine', label: menuLabels['menu-cuisine'] },
+        ],
+      },
+      { key: 'orders', label: menuLabels.orders },
+      { key: 'comments', label: menuLabels.comments },
+      { key: 'revenue', label: menuLabels.revenue },
+    ],
+    [navigate],
+  )
 
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'menu-cuisine') {
+      navigate('/home/menu/cuisine')
+      return
+    }
+
+    navigate(`/home/${key}`)
+  }
   return (
     <Layout className="merchant-home-layout">
       <Layout.Header className="merchant-topbar">
@@ -67,8 +89,9 @@ function MerchantHome() {
           <Menu
             mode="inline"
             selectedKeys={[activeKey]}
+            defaultOpenKeys={defaultOpenKeys}
             items={menuItems}
-            onClick={({ key }) => navigate(`/home/${key}`)}
+            onClick={handleMenuClick}
           />
         </Layout.Sider>
 

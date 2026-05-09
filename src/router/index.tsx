@@ -1,5 +1,6 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import CommentManagePage from '../pages/comment-manage/CommentManagePage'
+import CuisineManagePage from '../pages/cuisine-manage/CuisineManagePage'
 import MerchantHome from '../pages/home/MerchantHome'
 import MenuManagePage from '../pages/menu-manage/MenuManagePage'
 import OrderManagePage from '../pages/order-manage/OrderManagePage'
@@ -31,6 +32,10 @@ const router = createBrowserRouter([
       {
         path: 'menu',
         element: <MenuManagePage />,
+      },
+      {
+        path: 'menu/cuisine',
+        element: <CuisineManagePage />,
       },
       {
         path: 'orders',
