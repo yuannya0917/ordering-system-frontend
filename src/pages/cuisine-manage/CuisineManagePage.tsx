@@ -1,7 +1,8 @@
-import { CoffeeOutlined } from '@ant-design/icons'
-import { Button, Col, Form, Image, Input, Popconfirm, Row, Space, Table, message } from 'antd'
+import { Button, Col, Form, Input, Popconfirm, Row, Space, Table, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useMemo, useState } from 'react'
+import { addDish, deleteDish, updateDish } from '../../api/cuisine-manage'
+import type { AddDishParams } from '../../api/cuisine-manage'
 import CuisineFormModal from './CuisineFormModal'
 import type { CuisineFormValues } from './CuisineFormModal'
 
@@ -15,28 +16,28 @@ type SearchValues = {
 
 const initialCuisineData: CuisineRecord[] = [
   {
-    key: '1',
-    cover: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=160&q=80',
-    name: '招牌黑椒牛柳饭',
-    category: '主食',
-    price: 32,
-    stock: 48,
+    key: 'dish001',
+    dishId: 'dish001',
+    dishName: '招牌黑椒牛柳饭',
+    dishPrice: 32,
+    dishIntroduction: '黑椒浓香，牛柳鲜嫩',
+    menuId: 'menu1',
   },
   {
-    key: '2',
-    cover: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=160&q=80',
-    name: '番茄肥牛面',
-    category: '主食',
-    price: 29,
-    stock: 32,
+    key: 'dish002',
+    dishId: 'dish002',
+    dishName: '番茄肥牛面',
+    dishPrice: 29,
+    dishIntroduction: '酸甜浓汤搭配肥牛',
+    menuId: 'menu1',
   },
   {
-    key: '3',
-    cover: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=160&q=80',
-    name: '柠檬气泡茶',
-    category: '饮品',
-    price: 15,
-    stock: 76,
+    key: 'dish003',
+    dishId: 'dish003',
+    dishName: '柠檬气泡茶',
+    dishPrice: 15,
+    dishIntroduction: '清爽解腻',
+    menuId: 'menu2',
   },
 ]
 
@@ -46,12 +47,13 @@ function CuisineManagePage() {
   const [cuisineData, setCuisineData] = useState<CuisineRecord[]>(initialCuisineData)
   const [editingCuisine, setEditingCuisine] = useState<CuisineRecord | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const filteredCuisineData = useMemo(() => {
     const cuisineName = searchValues.cuisineName?.trim().toLowerCase()
 
     return cuisineData.filter((cuisine) => {
-      return !cuisineName || cuisine.name.toLowerCase().includes(cuisineName)
+      return !cuisineName || cuisine.dishName.toLowerCase().includes(cuisineName)
     })
   }, [cuisineData, searchValues])
 
@@ -70,58 +72,76 @@ function CuisineManagePage() {
     setModalOpen(true)
   }
 
-  const handleDelete = (key: string) => {
-    setCuisineData((data) => data.filter((cuisine) => cuisine.key !== key))
-    message.success('删除成功')
+  const handleDelete = async (dishId: string) => {
+    try {
+      await deleteDish({ dishId })
+      setCuisineData((data) => data.filter((cuisine) => cuisine.dishId !== dishId))
+      message.success('删除成功')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除菜品失败')
+    }
   }
 
-  const handleSubmit = (values: CuisineFormValues) => {
+  const handleSubmit = async (values: CuisineFormValues) => {
+    const params: AddDishParams = {
+      dishId: values.dishId,
+      dishName: values.dishName,
+      dishPrice: String(values.dishPrice),
+      dishIntroduction: values.dishIntroduction?.trim() || undefined,
+      menuId: values.menuId,
+    }
+
     if (editingCuisine) {
-      setCuisineData((data) =>
-        data.map((cuisine) =>
-          cuisine.key === editingCuisine.key ? { ...cuisine, ...values } : cuisine,
-        ),
-      )
-      message.success('编辑成功')
-    } else {
+      setSaving(true)
+      try {
+        await updateDish(params)
+        setCuisineData((data) =>
+          data.map((cuisine) =>
+            cuisine.key === editingCuisine.key
+              ? { ...values, dishIntroduction: params.dishIntroduction, key: values.dishId }
+              : cuisine,
+          ),
+        )
+        setModalOpen(false)
+        message.success('编辑成功')
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '修改菜品失败')
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
+    setSaving(true)
+    try {
+      await addDish(params)
       setCuisineData((data) => [
         ...data,
         {
-          key: `${Date.now()}`,
           ...values,
+          dishIntroduction: params.dishIntroduction,
+          key: values.dishId,
         },
       ])
+      setModalOpen(false)
       message.success('添加成功')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '添加菜品失败')
+    } finally {
+      setSaving(false)
     }
-
-    setModalOpen(false)
   }
 
   const cuisineColumns: TableColumnsType<CuisineRecord> = [
+    { title: '菜品ID', dataIndex: 'dishId' },
+    { title: '菜品名称', dataIndex: 'dishName' },
     {
-      title: '封面',
-      dataIndex: 'cover',
-      render: (cover: string) =>
-        cover ? (
-          <Image
-            width={56}
-            height={56}
-            src={cover}
-            style={{ borderRadius: 4, objectFit: 'cover' }}
-            preview={false}
-          />
-        ) : (
-          <CoffeeOutlined style={{ fontSize: 40 }} />
-        ),
-    },
-    { title: '菜品名称', dataIndex: 'name' },
-    { title: '类别', dataIndex: 'category' },
-    {
-      title: '价格',
-      dataIndex: 'price',
+      title: '菜品价格',
+      dataIndex: 'dishPrice',
       render: (price: number) => `￥${price.toFixed(2)}`,
     },
-    { title: '库存', dataIndex: 'stock' },
+    { title: '菜品介绍', dataIndex: 'dishIntroduction' },
+    { title: '所属菜单ID', dataIndex: 'menuId' },
     {
       title: '操作',
       render: (_, record) => (
@@ -133,7 +153,7 @@ function CuisineManagePage() {
             title="确认删除该菜品吗？"
             okText="确认"
             cancelText="取消"
-            onConfirm={() => handleDelete(record.key)}
+            onConfirm={() => handleDelete(record.dishId)}
           >
             <Button size="small" danger>
               删除
@@ -171,7 +191,12 @@ function CuisineManagePage() {
       </Row>
 
       <Row style={{ width: '100%' }}>
-        <Table style={{ width: '100%' }} dataSource={filteredCuisineData} columns={cuisineColumns} />
+        <Table<CuisineRecord>
+          rowKey="key"
+          style={{ width: '100%' }}
+          dataSource={filteredCuisineData}
+          columns={cuisineColumns}
+        />
       </Row>
 
       <CuisineFormModal
@@ -180,9 +205,12 @@ function CuisineManagePage() {
         initialValues={editingCuisine ?? undefined}
         onCancel={() => setModalOpen(false)}
         onSubmit={handleSubmit}
+        confirmLoading={saving}
+        dishIdDisabled={Boolean(editingCuisine)}
       />
     </>
   )
 }
 
 export default CuisineManagePage
+

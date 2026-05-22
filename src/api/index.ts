@@ -3,6 +3,7 @@ export { login } from './login'
 export type { LoginParams, LoginResult, UserType as LoginUserType } from './login'
 export { getAllUsers, queryUsers } from './user-account'
 export { addMenu, deleteMenu, updateMenu } from './menu-management'
+export { addDish, deleteDish, updateDish } from './cuisine-manage'
 export type {
   GetAllUsersParams,
   QueryUsersParams,
@@ -10,3 +11,4 @@ export type {
   UserAccount,
 } from './user-account'
 export type { AddMenuParams, DeleteMenuParams, UpdateMenuParams } from './menu-management'
+export type { AddDishParams, DeleteDishParams, UpdateDishParams } from './cuisine-manage'

@@ -2,11 +2,11 @@ import { Form, Input, InputNumber, Modal } from 'antd'
 import { useEffect } from 'react'
 
 export type CuisineFormValues = {
-  cover: string
-  name: string
-  category: string
-  price: number
-  stock: number
+  dishId: string
+  dishName: string
+  dishPrice: number
+  dishIntroduction?: string
+  menuId: string
 }
 
 type CuisineFormModalProps = {
@@ -14,7 +14,9 @@ type CuisineFormModalProps = {
   title: string
   initialValues?: Partial<CuisineFormValues>
   onCancel: () => void
-  onSubmit: (values: CuisineFormValues) => void
+  onSubmit: (values: CuisineFormValues) => void | Promise<void>
+  confirmLoading?: boolean
+  dishIdDisabled?: boolean
 }
 
 function CuisineFormModal({
@@ -23,6 +25,8 @@ function CuisineFormModal({
   initialValues,
   onCancel,
   onSubmit,
+  confirmLoading,
+  dishIdDisabled,
 }: CuisineFormModalProps) {
   const [form] = Form.useForm<CuisineFormValues>()
 
@@ -37,7 +41,7 @@ function CuisineFormModal({
 
   const handleOk = async () => {
     const values = await form.validateFields()
-    onSubmit(values)
+    await onSubmit(values)
   }
 
   return (
@@ -46,44 +50,44 @@ function CuisineFormModal({
       open={open}
       okText="保存"
       cancelText="取消"
+      confirmLoading={confirmLoading}
       onOk={handleOk}
       onCancel={onCancel}
     >
       <Form form={form} layout="vertical">
         <Form.Item
-          label="菜品封面"
-          name="cover"
-          rules={[{ required: true, message: '请输入菜品封面图片地址' }]}
+          label="菜品ID"
+          name="dishId"
+          rules={[{ required: true, message: '请输入菜品ID' }]}
         >
-          <Input placeholder="请输入封面图片地址" />
+          <Input disabled={dishIdDisabled} placeholder="请输入菜品ID" />
         </Form.Item>
         <Form.Item
           label="菜品名称"
-          name="name"
+          name="dishName"
           rules={[{ required: true, message: '请输入菜品名称' }]}
         >
           <Input placeholder="请输入菜品名称" />
         </Form.Item>
         <Form.Item
-          label="类别"
-          name="category"
-          rules={[{ required: true, message: '请输入类别' }]}
-        >
-          <Input placeholder="请输入类别" />
-        </Form.Item>
-        <Form.Item
-          label="价格"
-          name="price"
-          rules={[{ required: true, message: '请输入价格' }]}
+          label="菜品价格"
+          name="dishPrice"
+          rules={[{ required: true, message: '请输入菜品价格' }]}
         >
           <InputNumber min={0} precision={2} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
-          label="库存"
-          name="stock"
-          rules={[{ required: true, message: '请输入库存' }]}
+          label="菜品介绍"
+          name="dishIntroduction"
         >
-          <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+          <Input.TextArea rows={3} placeholder="请输入菜品介绍" />
+        </Form.Item>
+        <Form.Item
+          label="所属菜单ID"
+          name="menuId"
+          rules={[{ required: true, message: '请输入所属菜单ID' }]}
+        >
+          <Input placeholder="请输入所属菜单ID" />
         </Form.Item>
       </Form>
     </Modal>
