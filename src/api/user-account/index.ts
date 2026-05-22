@@ -1,20 +1,37 @@
 import { api } from '../request'
 
-export type UserType = 'customer' | 'admin'
-
-export type GetUserInfoParams = {
+export type UserAccount = {
   userId: string
+  username: string
+  securityQuestion: string | null
+  totalAmount: number
+  orderCount: number
+}
+
+export type GetAllUsersParams = {
   currentUserId: string
 }
 
-export type UserInfo = {
-  userId: string
-  userType: UserType
-  securityQuestion: string | null
-  securityAnswer: string | null
-  merchantName: string | null
+export type QueryUsersParams = {
+  currentUserId: string
+  userId?: string
+  username?: string
+  page: number
+  pageSize: number
 }
 
-export function getUserInfo(params: GetUserInfoParams) {
-  return api.get<UserInfo>('/auth/info', { params })
+export type QueryUsersResult = {
+  records: UserAccount[]
+  total: number
+  size: number
+  current: number
+  pages: number
+}
+
+export function getAllUsers(params: GetAllUsersParams) {
+  return api.get<UserAccount[]>('/auth/getAllUsers', { params })
+}
+
+export function queryUsers(params: QueryUsersParams) {
+  return api.post<QueryUsersResult>('/auth/queryUsers', params)
 }

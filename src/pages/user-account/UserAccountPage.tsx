@@ -1,67 +1,145 @@
-import { Button, Col, Form, Input, Row, Space, Table } from 'antd'
-import { useMemo, useState } from 'react'
-
-type UserStatus = '正常' | '停用'
-
-type UserRecord = {
-  key: string
-  account: string
-  uid: string
-}
+import { Button, Col, Form, Input, Row, Space, Table, message } from 'antd'
+import type { TableColumnsType, TablePaginationConfig } from 'antd'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getAllUsers, queryUsers } from '../../api/user-account'
+import type { QueryUsersParams, UserAccount } from '../../api/user-account'
 
 type SearchValues = {
-  account?: string
-  uid?: string
-  status?: UserStatus
+  userId?: string
+  username?: string
 }
 
-const userData: UserRecord[] = [
-  { key: '1', account: 'customer001', uid: '138****1024'},
-  { key: '2', account: 'customer002', uid: '136****7788'},
-  { key: '3', account: 'customer003', uid: '159****2366'},
-]
+const CURRENT_USER_ID = 'root1'
+const DEFAULT_PAGE_SIZE = 10
+
+function normalizeSearchValues(values: SearchValues) {
+  return {
+    userId: values.userId?.trim() || undefined,
+    username: values.username?.trim() || undefined,
+  }
+}
 
 function UserAccountPage() {
   const [form] = Form.useForm<SearchValues>()
-  const [searchValues, setSearchValues] = useState<SearchValues>({})
+  const [users, setUsers] = useState<UserAccount[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    total: 0,
+  })
 
-  const useAccountColumns=[
-            { title: '账号', dataIndex: 'account' },
-            { title: 'UID', dataIndex: 'uid' },
-        ]
+  const columns = useMemo<TableColumnsType<UserAccount>>(
+    () => [
+      { title: '用户ID', dataIndex: 'userId' },
+      { title: '用户名', dataIndex: 'username' },
+      {
+        title: '消费总额',
+        dataIndex: 'totalAmount',
+        render: (value: number) => value ?? 0,
+      },
+      {
+        title: '订单数量',
+        dataIndex: 'orderCount',
+        render: (value: number) => value ?? 0,
+      },
+    ],
+    [],
+  )
 
-  const filteredUserData = useMemo(() => {
-    const account = searchValues.account?.trim().toLowerCase()
-    const uid = searchValues.uid?.trim()
+  const fetchAllUsers = useCallback(async () => {
+    setLoading(true)
 
-    return userData.filter((user) => {
-      const matchAccount = !account || user.account.toLowerCase().includes(account)
-      const matchPhone = !uid || user.uid.includes(uid)
+    try {
+      const data = await getAllUsers({ currentUserId: CURRENT_USER_ID })
 
-      return matchAccount && matchPhone
-    })
-  }, [searchValues])
+      setUsers(data)
+      setPagination((previous) => ({
+        ...previous,
+        current: 1,
+        total: data.length,
+      }))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '获取用户列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchQueryUsers = useCallback(
+    async (values: SearchValues, page = 1, pageSize = DEFAULT_PAGE_SIZE) => {
+      const searchValues = normalizeSearchValues(values)
+
+      if (!searchValues.userId && !searchValues.username) {
+        await fetchAllUsers()
+        return
+      }
+
+      setLoading(true)
+
+      try {
+        const params: QueryUsersParams = {
+          currentUserId: CURRENT_USER_ID,
+          page,
+          pageSize,
+          ...searchValues,
+        }
+        const data = await queryUsers(params)
+
+        setUsers(data.records)
+        setPagination({
+          current: data.current || page,
+          pageSize: data.size || pageSize,
+          total: data.total || data.records.length,
+        })
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '查询用户失败')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [fetchAllUsers],
+  )
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchAllUsers()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [fetchAllUsers])
+
+  const handleSearch = (values: SearchValues) => {
+    void fetchQueryUsers(values, 1, pagination.pageSize || DEFAULT_PAGE_SIZE)
+  }
 
   const handleReset = () => {
     form.resetFields()
-    setSearchValues({})
+    void fetchAllUsers()
+  }
+
+  const handleTableChange = (nextPagination: TablePaginationConfig) => {
+    void fetchQueryUsers(
+      form.getFieldsValue(),
+      nextPagination.current || 1,
+      nextPagination.pageSize || DEFAULT_PAGE_SIZE,
+    )
   }
 
   return (
     <>
       <Row style={{ width: '100%', marginBottom: 16 }}>
-        <Form form={form}  onFinish={setSearchValues} style={{width:'100%'}}>
-          <Row justify='space-between'>
+        <Form form={form} onFinish={handleSearch} style={{ width: '100%' }}>
+          <Row justify="space-between">
             <Col style={{ display: 'flex' }}>
               <Space size={20}>
-                <Form.Item label="账号" name="account">
-                  <Input allowClear placeholder="请输入账号" />
+                <Form.Item label="用户ID" name="userId">
+                  <Input allowClear placeholder="请输入用户ID" />
                 </Form.Item>
-                <Form.Item label="UID" name="uid">
-                  <Input allowClear placeholder="请输入UID" />
+                <Form.Item label="用户名" name="username">
+                  <Input allowClear placeholder="请输入用户名" />
                 </Form.Item>
               </Space>
-
             </Col>
 
             <Col>
@@ -78,10 +156,14 @@ function UserAccountPage() {
         </Form>
       </Row>
       <Row style={{ width: '100%' }}>
-        <Table
+        <Table<UserAccount>
+          rowKey="userId"
           style={{ width: '100%' }}
-          dataSource={filteredUserData}
-          columns={useAccountColumns}
+          loading={loading}
+          dataSource={users}
+          columns={columns}
+          pagination={pagination}
+          onChange={handleTableChange}
         />
       </Row>
     </>
