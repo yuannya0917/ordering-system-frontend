@@ -1,54 +1,53 @@
 import { Button, Col, Form, Input, Popconfirm, Row, Space, Table, Typography, message } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { deleteComment } from '../../api/comment-manage'
 
 type CommentRecord = {
   key: string
+  commentId: string
+  orderId: string
+  userId: string
   content: string
-  cuisineName: string
-  commentTime: string
+  publishTime: string
 }
 
 type SearchValues = {
   content?: string
-  cuisineName?: string
+  orderId?: string
 }
 
 const initialCommentData: CommentRecord[] = [
   {
-    key: '1',
-    content: '味道很好，出餐也快。',
-    cuisineName: '招牌黑椒牛柳饭',
-    commentTime: '2026-05-09 12:45',
-  },
-  {
-    key: '2',
-    content: '希望下次可以少一点冰。',
-    cuisineName: '柠檬气泡茶',
-    commentTime: '2026-05-09 13:08',
-  },
-  {
-    key: '3',
-    content: '汤底不错，分量合适。',
-    cuisineName: '番茄肥牛面',
-    commentTime: '2026-05-09 13:26',
+    key: 'cmt17345678901',
+    commentId: 'cmt17345678901',
+    orderId: 'order01',
+    userId: 'user01',
+    content: '味道非常好！',
+    publishTime: '2026-05-16T23:30:00',
   },
 ]
 
-function createCommentColumns(onDelete: (key: string) => void): TableColumnsType<CommentRecord> {
+function formatPublishTime(publishTime: string) {
+  return publishTime.replace('T', ' ')
+}
+
+function createCommentColumns(onDelete: (record: CommentRecord) => void): TableColumnsType<CommentRecord> {
   return [
+    { title: '评论ID', dataIndex: 'commentId', width: 170 },
+    { title: '订单ID', dataIndex: 'orderId', width: 140 },
+    { title: '用户ID', dataIndex: 'userId', width: 140 },
     {
       title: '评论内容',
       dataIndex: 'content',
       render: (content: string) => <Typography.Text>{content}</Typography.Text>,
     },
-    { title: '菜品名称', dataIndex: 'cuisineName', width: 180 },
     {
-      title: '评论时间',
-      dataIndex: 'commentTime',
-      width: 170,
-      render: (commentTime: string) => (
-        <Typography.Text type="secondary">{commentTime}</Typography.Text>
+      title: '发布时间',
+      dataIndex: 'publishTime',
+      width: 180,
+      render: (publishTime: string) => (
+        <Typography.Text type="secondary">{formatPublishTime(publishTime)}</Typography.Text>
       ),
     },
     {
@@ -59,7 +58,7 @@ function createCommentColumns(onDelete: (key: string) => void): TableColumnsType
           title="确认删除该评论吗？"
           okText="确认"
           cancelText="取消"
-          onConfirm={() => onDelete(record.key)}
+          onConfirm={() => onDelete(record)}
         >
           <Button size="small" danger>
             删除
@@ -77,14 +76,13 @@ function CommentManagePage() {
 
   const filteredCommentData = useMemo(() => {
     const content = searchValues.content?.trim().toLowerCase()
-    const cuisineName = searchValues.cuisineName?.trim().toLowerCase()
+    const orderId = searchValues.orderId?.trim().toLowerCase()
 
     return commentData.filter((comment) => {
       const matchContent = !content || comment.content.toLowerCase().includes(content)
-      const matchCuisineName =
-        !cuisineName || comment.cuisineName.toLowerCase().includes(cuisineName)
+      const matchOrderId = !orderId || comment.orderId.toLowerCase().includes(orderId)
 
-      return matchContent && matchCuisineName
+      return matchContent && matchOrderId
     })
   }, [commentData, searchValues])
 
@@ -93,12 +91,31 @@ function CommentManagePage() {
     setSearchValues({})
   }
 
-  const handleDelete = (key: string) => {
-    setCommentData((data) => data.filter((comment) => comment.key !== key))
-    message.success('删除成功')
-  }
+  const handleDelete = useCallback(async (record: CommentRecord) => {
+    if (!record.commentId || !record.userId) {
+      message.error('参数不完整')
+      return
+    }
 
-  const commentColumns = useMemo(() => createCommentColumns(handleDelete), [])
+    try {
+      const result = await deleteComment({
+        commentId: record.commentId,
+        userId: record.userId,
+      })
+
+      if (!result.success) {
+        message.error(result.message || '删除失败，评论不存在或无权删除')
+        return
+      }
+
+      setCommentData((data) => data.filter((comment) => comment.commentId !== record.commentId))
+      message.success(result.message || '删除成功')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除评论失败')
+    }
+  }, [])
+
+  const commentColumns = useMemo(() => createCommentColumns(handleDelete), [handleDelete])
 
   return (
     <>
@@ -110,8 +127,8 @@ function CommentManagePage() {
                 <Form.Item style={{ marginBottom: 0 }} label="评论内容" name="content">
                   <Input allowClear placeholder="请输入评论内容" />
                 </Form.Item>
-                <Form.Item style={{ marginBottom: 0 }} label="菜品名称" name="cuisineName">
-                  <Input allowClear placeholder="请输入菜品名称" />
+                <Form.Item style={{ marginBottom: 0 }} label="订单ID" name="orderId">
+                  <Input allowClear placeholder="请输入订单ID" />
                 </Form.Item>
                 <Button type="primary" htmlType="submit">
                   查询
@@ -124,7 +141,8 @@ function CommentManagePage() {
       </Row>
 
       <Row style={{ width: '100%' }}>
-        <Table
+        <Table<CommentRecord>
+          rowKey="commentId"
           style={{ width: '100%' }}
           dataSource={filteredCommentData}
           columns={commentColumns}

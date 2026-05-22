@@ -1,9 +1,11 @@
 import { Button, Radio, Row, Space, Table, Tag, Typography, message } from 'antd'
 import type { RadioChangeEvent, TableColumnsType } from 'antd'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { updateOrderStatus } from '../../api/order-manage'
 
 type OrderStatus = '未接单' | '进行中' | '已完成'
 type OrderStatusFilter = '全部' | OrderStatus
+type OrderStatusCode = '0' | '1' | '2'
 
 type OrderCuisine = {
   name: string
@@ -77,9 +79,16 @@ const statusColorMap: Record<OrderStatus, string> = {
 
 const statusOptions: OrderStatusFilter[] = ['全部', '未接单', '进行中', '已完成']
 
+const statusCodeMap: Record<OrderStatus, OrderStatusCode> = {
+  未接单: '0',
+  进行中: '1',
+  已完成: '2',
+}
+
 function createOrderColumns(
-  onAccept: (key: string) => void,
-  onComplete: (key: string) => void,
+  onAccept: (orderId: string) => void,
+  onComplete: (orderId: string) => void,
+  updatingOrderId?: string,
 ): TableColumnsType<OrderRecord> {
   return [
     {
@@ -142,7 +151,12 @@ function createOrderColumns(
       render: (_, record) => {
         if (record.status === '未接单') {
           return (
-            <Button type="primary" size="small" onClick={() => onAccept(record.key)}>
+            <Button
+              type="primary"
+              size="small"
+              loading={updatingOrderId === record.orderNo}
+              onClick={() => onAccept(record.orderNo)}
+            >
               接单
             </Button>
           )
@@ -150,7 +164,11 @@ function createOrderColumns(
 
         if (record.status === '进行中') {
           return (
-            <Button size="small" onClick={() => onComplete(record.key)}>
+            <Button
+              size="small"
+              loading={updatingOrderId === record.orderNo}
+              onClick={() => onComplete(record.orderNo)}
+            >
               完成订单
             </Button>
           )
@@ -165,6 +183,7 @@ function createOrderColumns(
 function OrderManagePage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>('全部')
   const [orders, setOrders] = useState<OrderRecord[]>(initialOrderData)
+  const [updatingOrderId, setUpdatingOrderId] = useState<string>()
 
   const orderCounts = useMemo<OrderCountMap>(() => {
     return {
@@ -187,23 +206,44 @@ function OrderManagePage() {
     setStatusFilter(event.target.value)
   }
 
-  const handleAccept = (key: string) => {
-    setOrders((data) =>
-      data.map((order) => (order.key === key ? { ...order, status: '进行中' } : order)),
-    )
-    message.success('已接单')
-  }
+  const updateStatus = useCallback(
+    async (orderId: string, status: OrderStatus, successText: string) => {
+      setUpdatingOrderId(orderId)
+      try {
+        await updateOrderStatus({
+          orderId,
+          orderStatus: statusCodeMap[status],
+        })
+        setOrders((data) =>
+          data.map((order) => (order.orderNo === orderId ? { ...order, status } : order)),
+        )
+        message.success(successText)
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '修改订单状态失败')
+      } finally {
+        setUpdatingOrderId(undefined)
+      }
+    },
+    [],
+  )
 
-  const handleComplete = (key: string) => {
-    setOrders((data) =>
-      data.map((order) => (order.key === key ? { ...order, status: '已完成' } : order)),
-    )
-    message.success('订单已完成')
-  }
+  const handleAccept = useCallback(
+    (orderId: string) => {
+      void updateStatus(orderId, '进行中', '已接单')
+    },
+    [updateStatus],
+  )
+
+  const handleComplete = useCallback(
+    (orderId: string) => {
+      void updateStatus(orderId, '已完成', '订单已完成')
+    },
+    [updateStatus],
+  )
 
   const orderColumns = useMemo(
-    () => createOrderColumns(handleAccept, handleComplete),
-    [],
+    () => createOrderColumns(handleAccept, handleComplete, updatingOrderId),
+    [handleAccept, handleComplete, updatingOrderId],
   )
 
   return (
