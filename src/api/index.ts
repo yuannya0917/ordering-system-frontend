@@ -7,6 +7,7 @@ export { addDish, deleteDish, getDishList, updateDish } from './cuisine-manage'
 export { deleteComment } from './comment-manage'
 export { updateOrderStatus } from './order-manage'
 export { getDishImage, uploadDishImage } from './pic'
+export { getTotalAmount } from './revenue'
 export type {
   GetAllUsersParams,
   QueryUsersParams,
@@ -30,3 +31,4 @@ export type {
 export type { DeleteCommentParams, DeleteCommentResult } from './comment-manage'
 export type { UpdateOrderStatusParams } from './order-manage'
 export type { DishImage, UploadDishImageParams } from './pic'
+export type { GetTotalAmountParams, TotalAmountResult } from './revenue'

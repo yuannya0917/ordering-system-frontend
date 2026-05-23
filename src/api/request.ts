@@ -1,4 +1,6 @@
-const DEFAULT_API_BASE_URL = '/api'
+const DEFAULT_API_BASE_URL = import.meta.env.PROD 
+  ? 'http://10.100.147.122:8081'  // 生产环境使用完整 URL
+  : '/api'  // 开发环境使用 proxy
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 

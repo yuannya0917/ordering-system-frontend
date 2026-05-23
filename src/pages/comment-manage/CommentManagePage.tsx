@@ -1,15 +1,11 @@
 import { Button, Col, Form, Input, Popconfirm, Row, Space, Table, Typography, message } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useCallback, useMemo, useState } from 'react'
-import { deleteComment } from '../../api/comment-manage'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { deleteComment, getAllComments } from '../../api/comment-manage'
+import type { CommentItem } from '../../api/comment-manage'
 
-type CommentRecord = {
+type CommentRecord = CommentItem & {
   key: string
-  commentId: string
-  orderId: string
-  userId: string
-  content: string
-  publishTime: string
 }
 
 type SearchValues = {
@@ -17,19 +13,15 @@ type SearchValues = {
   orderId?: string
 }
 
-const initialCommentData: CommentRecord[] = [
-  {
-    key: 'cmt17345678901',
-    commentId: 'cmt17345678901',
-    orderId: 'order01',
-    userId: 'user01',
-    content: '味道非常好！',
-    publishTime: '2026-05-16T23:30:00',
-  },
-]
-
 function formatPublishTime(publishTime: string) {
   return publishTime.replace('T', ' ')
+}
+
+function toCommentRecords(data: CommentItem[]): CommentRecord[] {
+  return data.map((comment) => ({
+    ...comment,
+    key: comment.commentId,
+  }))
 }
 
 function createCommentColumns(onDelete: (record: CommentRecord) => void): TableColumnsType<CommentRecord> {
@@ -72,7 +64,25 @@ function createCommentColumns(onDelete: (record: CommentRecord) => void): TableC
 function CommentManagePage() {
   const [form] = Form.useForm<SearchValues>()
   const [searchValues, setSearchValues] = useState<SearchValues>({})
-  const [commentData, setCommentData] = useState<CommentRecord[]>(initialCommentData)
+  const [commentData, setCommentData] = useState<CommentRecord[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const fetchComments = async () => {
+      setLoading(true)
+
+      try {
+        const data = await getAllComments()
+        setCommentData(toCommentRecords(data))
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '获取评论列表失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void fetchComments()
+  }, [])
 
   const filteredCommentData = useMemo(() => {
     const content = searchValues.content?.trim().toLowerCase()
@@ -146,6 +156,7 @@ function CommentManagePage() {
         <Table<CommentRecord>
           rowKey="commentId"
           style={{ width: '100%' }}
+          loading={loading}
           dataSource={filteredCommentData}
           columns={commentColumns}
         />
