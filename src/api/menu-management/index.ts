@@ -1,5 +1,17 @@
 import { api, request } from '../request'
 
+export type MenuItem = {
+  menuId: string
+  menuName: string
+  cover?: string | null
+  remark?: string | null
+  createTime?: string | null
+}
+
+export type GetMenuListParams = {
+  menuName?: string
+}
+
 export type AddMenuParams = {
   menuId: string
   menuName: string
@@ -15,6 +27,10 @@ export type UpdateMenuParams = {
   menuId: string
   menuName: string
   remark?: string
+}
+
+export function getMenuList(params?: GetMenuListParams) {
+  return api.get<MenuItem[]>('/menu/list', { params })
 }
 
 export function addMenu(params: AddMenuParams) {

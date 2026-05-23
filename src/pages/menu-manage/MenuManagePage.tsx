@@ -2,20 +2,24 @@ import {
   Button,
   Col,
   Form,
+  Image,
   Input,
   Modal,
   Popconfirm,
   Row,
   Space,
   Table,
+  Upload,
   message,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useMemo, useState } from 'react'
-import { addMenu, deleteMenu, updateMenu } from '../../api/menu-management'
-import type { AddMenuParams, UpdateMenuParams } from '../../api/menu-management'
+import { UploadOutlined } from '@ant-design/icons'
+import type { UploadFile } from 'antd/es/upload/interface'
+import { useEffect, useState } from 'react'
+import { addMenu, deleteMenu, getMenuList, updateMenu } from '../../api/menu-management'
+import type { AddMenuParams, MenuItem, UpdateMenuParams } from '../../api/menu-management'
 
-type MenuRecord = AddMenuParams & {
+type MenuRecord = MenuItem & {
   key: string
 }
 
@@ -27,31 +31,8 @@ type MenuFormValues = {
   menuId: string
   menuName: string
   remark?: string
+  coverFile?: UploadFile[]
 }
-
-const initialMenuData: MenuRecord[] = [
-  {
-    key: 'menu1',
-    menuId: 'menu1',
-    menuName: '主食',
-    remark: '米饭、面食等',
-    createTime: '2026-05-16T22:30:00',
-  },
-  {
-    key: 'menu2',
-    menuId: 'menu2',
-    menuName: '饮品',
-    remark: '冷热饮品',
-    createTime: '2026-05-16T22:30:00',
-  },
-  {
-    key: 'menu3',
-    menuId: 'menu3',
-    menuName: '小吃',
-    remark: '餐前小食',
-    createTime: '2026-05-16T22:30:00',
-  },
-]
 
 function formatLocalDateTime(date: Date) {
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -61,28 +42,80 @@ function formatLocalDateTime(date: Date) {
   )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
+function normalizeSearchValues(values: SearchValues) {
+  return {
+    menuName: values.menuName?.trim() || undefined,
+  }
+}
+
+function toMenuRecords(data: MenuItem[]): MenuRecord[] {
+  return data.map((menu) => ({ ...menu, key: menu.menuId }))
+}
+
+function getCoverUrl(cover?: string | null) {
+  if (!cover) {
+    return ''
+  }
+
+  return cover
+}
+
+function getUploadFileList(event: { fileList?: UploadFile[] }) {
+  return event?.fileList ?? []
+}
+
 function MenuManagePage() {
   const [searchForm] = Form.useForm<SearchValues>()
   const [menuForm] = Form.useForm<MenuFormValues>()
-  const [searchValues, setSearchValues] = useState<SearchValues>({})
-  const [menuData, setMenuData] = useState<MenuRecord[]>(initialMenuData)
+  const [menuData, setMenuData] = useState<MenuRecord[]>([])
   const [editingMenu, setEditingMenu] = useState<MenuRecord | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const filteredMenuData = useMemo(() => {
-    const menuName = searchValues.menuName?.trim().toLowerCase()
+  // useEffect(() => {
+  //   const fetchMenuList = async () => {
+  //     setLoading(true)
 
-    return menuData.filter((menu) => {
-      return !menuName || menu.menuName.toLowerCase().includes(menuName)
-    })
-  }, [menuData, searchValues])
+  //     try {
+  //       const data = await getMenuList()
+  //       setMenuData(toMenuRecords(data))
+  //     } catch (error) {
+  //       message.error(error instanceof Error ? error.message : '获取菜单列表失败')
+  //     } finally {
+  //       setLoading(false)
+  //     }
+  //   }
+
+  //   void fetchMenuList()
+  // }, [])
+
+  useEffect(()=>{
+    const fetchMenuList=async()=>{
+      const data=await getMenuList()
+      setMenuData(toMenuRecords(data))
+    }
+
+    fetchMenuList()
+  },[])
+
+  const handleSearch = async (values: SearchValues) => {
+    setLoading(true)
+
+    try {
+      const data = await getMenuList(normalizeSearchValues(values))
+      setMenuData(toMenuRecords(data))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '获取菜单列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleReset = () => {
     searchForm.resetFields()
-    setSearchValues({})
+    void handleSearch({})
   }
-
   const handleAdd = () => {
     setEditingMenu(null)
     menuForm.resetFields()
@@ -94,7 +127,8 @@ function MenuManagePage() {
     menuForm.setFieldsValue({
       menuId: menu.menuId,
       menuName: menu.menuName,
-      remark: menu.remark,
+      remark: menu.remark ?? undefined,
+      coverFile: [],
     })
     setModalOpen(true)
   }
@@ -102,7 +136,7 @@ function MenuManagePage() {
   const handleDelete = async (menuId: string) => {
     try {
       await deleteMenu({ menuId })
-      setMenuData((data) => data.filter((menu) => menu.menuId !== menuId))
+      await handleSearch(searchForm.getFieldsValue())
       message.success('删除成功')
     } catch (error) {
       message.error(error instanceof Error ? error.message : '删除菜单失败')
@@ -122,9 +156,7 @@ function MenuManagePage() {
       setSaving(true)
       try {
         await updateMenu(params)
-        setMenuData((data) =>
-          data.map((menu) => (menu.key === editingMenu.key ? { ...menu, ...params } : menu)),
-        )
+        await handleSearch(searchForm.getFieldsValue())
         setModalOpen(false)
         message.success('编辑成功')
       } catch (error) {
@@ -144,13 +176,7 @@ function MenuManagePage() {
     setSaving(true)
     try {
       await addMenu(params)
-      setMenuData((data) => [
-        ...data,
-        {
-          key: params.menuId,
-          ...params,
-        },
-      ])
+      await handleSearch(searchForm.getFieldsValue())
       setModalOpen(false)
       message.success('添加成功')
     } catch (error) {
@@ -161,6 +187,25 @@ function MenuManagePage() {
   }
 
   const menuColumns: TableColumnsType<MenuRecord> = [
+    {
+      title: '菜单封面',
+      dataIndex: 'cover',
+      render: (cover: string | null | undefined) => {
+        const coverUrl = getCoverUrl(cover)
+
+        return coverUrl ? (
+          <Image
+            src={coverUrl}
+            alt="菜单封面"
+            width={64}
+            height={48}
+            style={{ objectFit: 'cover', borderRadius: 4 }}
+          />
+        ) : (
+          '-'
+        )
+      },
+    },
     { title: '菜单ID', dataIndex: 'menuId' },
     { title: '菜单名称', dataIndex: 'menuName' },
     { title: '备注', dataIndex: 'remark' },
@@ -169,7 +214,7 @@ function MenuManagePage() {
       title: '操作',
       render: (_value, record) => (
         <Space>
-          <Button size="small" onClick={() => handleEdit(record)}>
+          <Button size="small" onClick={() => handleEdit(record)} danger>
             编辑
           </Button>
           <Popconfirm
@@ -190,22 +235,24 @@ function MenuManagePage() {
   return (
     <>
       <Row style={{ width: '100%', marginBottom: 16 }}>
-        <Form form={searchForm} onFinish={setSearchValues} style={{ width: '100%' }}>
+        <Form form={searchForm} onFinish={handleSearch} style={{ width: '100%' }}>
           <Row justify="space-between">
             <Col style={{ display: 'flex' }}>
               <Space>
                 <Form.Item style={{ marginBottom: 0 }} label="菜单名称" name="menuName">
                   <Input allowClear placeholder="请输入菜单名称" />
                 </Form.Item>
-                <Button type="primary" htmlType="submit">
+                <Button type="primary" htmlType="submit" danger>
                   查询
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset} danger>
+                  重置
+                </Button>
               </Space>
             </Col>
 
             <Col>
-              <Button type="primary" onClick={handleAdd}>
+              <Button type="primary" onClick={handleAdd} danger>
                 添加新菜单
               </Button>
             </Col>
@@ -217,7 +264,8 @@ function MenuManagePage() {
         <Table<MenuRecord>
           rowKey="key"
           style={{ width: '100%' }}
-          dataSource={filteredMenuData}
+          loading={loading}
+          dataSource={menuData}
           columns={menuColumns}
         />
       </Row>
@@ -248,6 +296,18 @@ function MenuManagePage() {
           </Form.Item>
           <Form.Item label="备注" name="remark">
             <Input.TextArea rows={3} placeholder="请输入备注" />
+          </Form.Item>
+          <Form.Item
+            label="菜单封面"
+            name="coverFile"
+            valuePropName="fileList"
+            getValueFromEvent={getUploadFileList}
+          >
+            <Upload accept="image/*" beforeUpload={() => false} listType="picture" maxCount={1}>
+              <Button icon={<UploadOutlined />} danger>
+                选择图片
+              </Button>
+            </Upload>
           </Form.Item>
         </Form>
       </Modal>

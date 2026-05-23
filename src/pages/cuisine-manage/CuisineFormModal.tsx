@@ -1,4 +1,6 @@
-import { Form, Input, InputNumber, Modal } from 'antd'
+import { UploadOutlined } from '@ant-design/icons'
+import { Button, Form, Input, InputNumber, Modal, Upload } from 'antd'
+import type { UploadFile } from 'antd/es/upload/interface'
 import { useEffect } from 'react'
 
 export type CuisineFormValues = {
@@ -7,6 +9,7 @@ export type CuisineFormValues = {
   dishPrice: number
   dishIntroduction?: string
   menuId: string
+  coverFile?: UploadFile[]
 }
 
 type CuisineFormModalProps = {
@@ -17,6 +20,10 @@ type CuisineFormModalProps = {
   onSubmit: (values: CuisineFormValues) => void | Promise<void>
   confirmLoading?: boolean
   dishIdDisabled?: boolean
+}
+
+function getUploadFileList(event: { fileList?: UploadFile[] }) {
+  return event?.fileList ?? []
 }
 
 function CuisineFormModal({
@@ -76,10 +83,7 @@ function CuisineFormModal({
         >
           <InputNumber min={0} precision={2} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item
-          label="菜品介绍"
-          name="dishIntroduction"
-        >
+        <Form.Item label="菜品介绍" name="dishIntroduction">
           <Input.TextArea rows={3} placeholder="请输入菜品介绍" />
         </Form.Item>
         <Form.Item
@@ -88,6 +92,18 @@ function CuisineFormModal({
           rules={[{ required: true, message: '请输入所属菜单ID' }]}
         >
           <Input placeholder="请输入所属菜单ID" />
+        </Form.Item>
+        <Form.Item
+          label="菜品封面"
+          name="coverFile"
+          valuePropName="fileList"
+          getValueFromEvent={getUploadFileList}
+        >
+          <Upload accept="image/*" beforeUpload={() => false} listType="picture" maxCount={1}>
+            <Button icon={<UploadOutlined />} danger>
+              选择图片
+            </Button>
+          </Upload>
         </Form.Item>
       </Form>
     </Modal>

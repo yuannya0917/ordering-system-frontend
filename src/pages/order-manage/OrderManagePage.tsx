@@ -156,6 +156,7 @@ function createOrderColumns(
               size="small"
               loading={updatingOrderId === record.orderNo}
               onClick={() => onAccept(record.orderNo)}
+              danger
             >
               接单
             </Button>
@@ -168,13 +169,18 @@ function createOrderColumns(
               size="small"
               loading={updatingOrderId === record.orderNo}
               onClick={() => onComplete(record.orderNo)}
+              danger
             >
               完成订单
             </Button>
           )
         }
 
-        return <Button size="small">查看详情</Button>
+        return (
+          <Button size="small" danger>
+            查看详情
+          </Button>
+        )
       },
     },
   ]

@@ -7,6 +7,7 @@ import OrderManagePage from '../pages/order-manage/OrderManagePage'
 import RevenuePage from '../pages/revenue/RevenuePage'
 import UserAccountPage from '../pages/user-account/UserAccountPage'
 import MerchantLogin from '../pages/login/MerchantLogin'
+import { ProtectedRoute } from './ProtectedRoute'
 
 const router = createBrowserRouter([
   {
@@ -19,7 +20,11 @@ const router = createBrowserRouter([
   },
   {
     path: '/home',
-    element: <MerchantHome />,
+    element: (
+      <ProtectedRoute>
+        <MerchantHome />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,

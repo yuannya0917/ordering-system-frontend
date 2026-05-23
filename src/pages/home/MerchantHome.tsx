@@ -2,6 +2,7 @@ import { Avatar, Button, Layout, Menu, Space, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMemo } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../store/useAuth'
 import './MerchantHome.css'
 
 type MenuKey = 'users' | 'menu' | 'menu-cuisine' | 'orders' | 'comments' | 'revenue'
@@ -37,6 +38,7 @@ function getActiveKey(pathname: string): MenuKey {
 function MerchantHome() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { logout, userId } = useAuth()
   const activeKey = useMemo(() => getActiveKey(location.pathname), [location.pathname])
   const defaultOpenKeys = activeKey === 'menu' || activeKey === 'menu-cuisine' ? ['menu-page'] : []
   const menuItems = useMemo<MenuProps['items']>(
@@ -65,6 +67,12 @@ function MerchantHome() {
 
     navigate(`/home/${key}`)
   }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <Layout className="merchant-home-layout">
       <Layout.Header className="merchant-topbar">
@@ -76,9 +84,9 @@ function MerchantHome() {
           <Avatar className="merchant-avatar"></Avatar>
           <div className="merchant-user-text">
             <Typography.Text strong>云上餐厅管理员</Typography.Text>
-            <Typography.Text type="secondary">账号：merchant</Typography.Text>
+            <Typography.Text type="secondary">账号：{userId}</Typography.Text>
           </div>
-          <Button onClick={() => navigate('/login', { replace: true })}>
+          <Button onClick={handleLogout} danger>
             退出登录
           </Button>
         </Space>

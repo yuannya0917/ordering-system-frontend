@@ -1,7 +1,8 @@
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login } from '../../api/login'
+import { login as loginRequest } from '../../api/login'
+import { useAuth } from '../../store/useAuth'
 import './MerchantLogin.css'
 
 type LoginFormValues = {
@@ -11,24 +12,34 @@ type LoginFormValues = {
 
 function MerchantLogin() {
   const navigate = useNavigate()
+  const { isLoggedIn, login, logout } = useAuth()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/home/users', { replace: true })
+    }
+  }, [isLoggedIn, navigate])
 
   const handleSubmit = async (values: LoginFormValues) => {
     setError('')
     setLoading(true)
+    const account = values.account.trim()
 
     try {
-      const result = await login({
-        userId: values.account,
+      const result = await loginRequest({
+        userId: account,
         userPassword: values.password,
       })
 
       if (result.userType !== 'admin') {
+        logout()
         setError('当前账号不是商家账号')
         return
       }
 
+      login(result.userId || account, result.userType)
       setError('')
       navigate('/home/users', { replace: true })
     } catch (requestError) {
@@ -92,7 +103,7 @@ function MerchantLogin() {
               />
             )}
 
-            <Button block htmlType="submit" type="primary" loading={loading}>
+            <Button block htmlType="submit" type="primary" loading={loading} danger>
               登录
             </Button>
           </Form>

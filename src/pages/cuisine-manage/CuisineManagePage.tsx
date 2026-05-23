@@ -1,65 +1,90 @@
-import { Button, Col, Form, Input, Popconfirm, Row, Space, Table, message } from 'antd'
+import { Button, Col, Form, Image, Input, Popconfirm, Row, Space, Table, message } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useMemo, useState } from 'react'
-import { addDish, deleteDish, updateDish } from '../../api/cuisine-manage'
-import type { AddDishParams } from '../../api/cuisine-manage'
+import { useEffect, useState } from 'react'
+import { addDish, deleteDish, getDishList, updateDish } from '../../api/cuisine-manage'
+import type { AddDishParams, DishItem } from '../../api/cuisine-manage'
+import { uploadDishImage } from '../../api/pic'
 import CuisineFormModal from './CuisineFormModal'
 import type { CuisineFormValues } from './CuisineFormModal'
 
-type CuisineRecord = CuisineFormValues & {
+type CuisineRecord = Omit<DishItem, 'dishIntroduction' | 'menuId'> & {
   key: string
+  dishIntroduction?: string
+  menuId: string
 }
 
 type SearchValues = {
-  cuisineName?: string
+  dishId?: string
+  dishName?: string
+  menuId?: string
 }
 
-const initialCuisineData: CuisineRecord[] = [
-  {
-    key: 'dish001',
-    dishId: 'dish001',
-    dishName: '招牌黑椒牛柳饭',
-    dishPrice: 32,
-    dishIntroduction: '黑椒浓香，牛柳鲜嫩',
-    menuId: 'menu1',
-  },
-  {
-    key: 'dish002',
-    dishId: 'dish002',
-    dishName: '番茄肥牛面',
-    dishPrice: 29,
-    dishIntroduction: '酸甜浓汤搭配肥牛',
-    menuId: 'menu1',
-  },
-  {
-    key: 'dish003',
-    dishId: 'dish003',
-    dishName: '柠檬气泡茶',
-    dishPrice: 15,
-    dishIntroduction: '清爽解腻',
-    menuId: 'menu2',
-  },
-]
+function normalizeSearchValues(values: SearchValues) {
+  return {
+    dishId: values.dishId?.trim() || undefined,
+    dishName: values.dishName?.trim() || undefined,
+    menuId: values.menuId?.trim() || undefined,
+  }
+}
+
+function toCuisineRecords(data: DishItem[]): CuisineRecord[] {
+  return data.map((dish) => ({
+    ...dish,
+    dishIntroduction: dish.dishIntroduction ?? undefined,
+    key: dish.dishId,
+    menuId: dish.menuId ?? '',
+  }))
+}
+
+function getDishImageUrl(dishImage?: string | null) {
+  if (!dishImage) {
+    return ''
+  }
+
+  return dishImage
+}
 
 function CuisineManagePage() {
   const [form] = Form.useForm<SearchValues>()
-  const [searchValues, setSearchValues] = useState<SearchValues>({})
-  const [cuisineData, setCuisineData] = useState<CuisineRecord[]>(initialCuisineData)
+  const [cuisineData, setCuisineData] = useState<CuisineRecord[]>([])
   const [editingCuisine, setEditingCuisine] = useState<CuisineRecord | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const filteredCuisineData = useMemo(() => {
-    const cuisineName = searchValues.cuisineName?.trim().toLowerCase()
+  useEffect(() => {
+    const fetchDishList = async () => {
+      setLoading(true)
 
-    return cuisineData.filter((cuisine) => {
-      return !cuisineName || cuisine.dishName.toLowerCase().includes(cuisineName)
-    })
-  }, [cuisineData, searchValues])
+      try {
+        const data = await getDishList()
+        setCuisineData(toCuisineRecords(data))
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '获取菜品列表失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void fetchDishList()
+  }, [])
+
+  const handleSearch = async (values: SearchValues) => {
+    setLoading(true)
+
+    try {
+      const data = await getDishList(normalizeSearchValues(values))
+      setCuisineData(toCuisineRecords(data))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '获取菜品列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleReset = () => {
     form.resetFields()
-    setSearchValues({})
+    void handleSearch({})
   }
 
   const handleAdd = () => {
@@ -75,7 +100,7 @@ function CuisineManagePage() {
   const handleDelete = async (dishId: string) => {
     try {
       await deleteDish({ dishId })
-      setCuisineData((data) => data.filter((cuisine) => cuisine.dishId !== dishId))
+      await handleSearch(form.getFieldsValue())
       message.success('删除成功')
     } catch (error) {
       message.error(error instanceof Error ? error.message : '删除菜品失败')
@@ -83,6 +108,7 @@ function CuisineManagePage() {
   }
 
   const handleSubmit = async (values: CuisineFormValues) => {
+    const imageFile = values.coverFile?.[0]?.originFileObj
     const params: AddDishParams = {
       dishId: values.dishId,
       dishName: values.dishName,
@@ -95,13 +121,14 @@ function CuisineManagePage() {
       setSaving(true)
       try {
         await updateDish(params)
-        setCuisineData((data) =>
-          data.map((cuisine) =>
-            cuisine.key === editingCuisine.key
-              ? { ...values, dishIntroduction: params.dishIntroduction, key: values.dishId }
-              : cuisine,
-          ),
-        )
+        if (imageFile) {
+          await uploadDishImage({
+            dishId: values.dishId,
+            dishName: values.dishName,
+            file: imageFile,
+          })
+        }
+        await handleSearch(form.getFieldsValue())
         setModalOpen(false)
         message.success('编辑成功')
       } catch (error) {
@@ -115,14 +142,14 @@ function CuisineManagePage() {
     setSaving(true)
     try {
       await addDish(params)
-      setCuisineData((data) => [
-        ...data,
-        {
-          ...values,
-          dishIntroduction: params.dishIntroduction,
-          key: values.dishId,
-        },
-      ])
+      if (imageFile) {
+        await uploadDishImage({
+          dishId: values.dishId,
+          dishName: values.dishName,
+          file: imageFile,
+        })
+      }
+      await handleSearch(form.getFieldsValue())
       setModalOpen(false)
       message.success('添加成功')
     } catch (error) {
@@ -133,20 +160,40 @@ function CuisineManagePage() {
   }
 
   const cuisineColumns: TableColumnsType<CuisineRecord> = [
+    {
+      title: '菜品封面',
+      dataIndex: 'dishImage',
+      render: (dishImage: string | null | undefined) => {
+        const imageUrl = getDishImageUrl(dishImage)
+
+        return imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt="菜品封面"
+            width={64}
+            height={48}
+            style={{ objectFit: 'cover', borderRadius: 4 }}
+          />
+        ) : (
+          '-'
+        )
+      },
+    },
     { title: '菜品ID', dataIndex: 'dishId' },
     { title: '菜品名称', dataIndex: 'dishName' },
     {
       title: '菜品价格',
       dataIndex: 'dishPrice',
-      render: (price: number) => `￥${price.toFixed(2)}`,
+      render: (price: number) => `¥${Number(price || 0).toFixed(2)}`,
     },
     { title: '菜品介绍', dataIndex: 'dishIntroduction' },
+    { title: '所属菜单', dataIndex: 'menuName' },
     { title: '所属菜单ID', dataIndex: 'menuId' },
     {
       title: '操作',
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => handleEdit(record)}>
+          <Button size="small" onClick={() => handleEdit(record)} danger>
             编辑
           </Button>
           <Popconfirm
@@ -167,22 +214,30 @@ function CuisineManagePage() {
   return (
     <>
       <Row style={{ width: '100%', marginBottom: 16 }}>
-        <Form form={form} onFinish={setSearchValues} style={{ width: '100%' }}>
+        <Form form={form} onFinish={handleSearch} style={{ width: '100%' }}>
           <Row justify="space-between">
             <Col>
               <Space>
-                <Form.Item style={{ marginBottom: 0 }} label="菜品名称" name="cuisineName">
+                <Form.Item style={{ marginBottom: 0 }} label="菜品ID" name="dishId">
+                  <Input allowClear placeholder="请输入菜品ID" />
+                </Form.Item>
+                <Form.Item style={{ marginBottom: 0 }} label="菜品名称" name="dishName">
                   <Input allowClear placeholder="请输入菜品名称" />
                 </Form.Item>
-                <Button type="primary" htmlType="submit">
+                <Form.Item style={{ marginBottom: 0 }} label="菜单ID" name="menuId">
+                  <Input allowClear placeholder="请输入菜单ID" />
+                </Form.Item>
+                <Button type="primary" htmlType="submit" danger>
                   查询
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset} danger>
+                  重置
+                </Button>
               </Space>
             </Col>
 
             <Col>
-              <Button type="primary" onClick={handleAdd}>
+              <Button type="primary" onClick={handleAdd} danger>
                 添加新菜品
               </Button>
             </Col>
@@ -194,7 +249,8 @@ function CuisineManagePage() {
         <Table<CuisineRecord>
           rowKey="key"
           style={{ width: '100%' }}
-          dataSource={filteredCuisineData}
+          loading={loading}
+          dataSource={cuisineData}
           columns={cuisineColumns}
         />
       </Row>
@@ -213,4 +269,3 @@ function CuisineManagePage() {
 }
 
 export default CuisineManagePage
-

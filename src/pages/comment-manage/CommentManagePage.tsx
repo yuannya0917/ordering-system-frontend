@@ -130,10 +130,12 @@ function CommentManagePage() {
                 <Form.Item style={{ marginBottom: 0 }} label="订单ID" name="orderId">
                   <Input allowClear placeholder="请输入订单ID" />
                 </Form.Item>
-                <Button type="primary" htmlType="submit">
+                <Button type="primary" htmlType="submit" danger>
                   查询
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
+                <Button onClick={handleReset} danger>
+                  重置
+                </Button>
               </Space>
             </Col>
           </Row>

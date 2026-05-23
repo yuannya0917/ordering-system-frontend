@@ -3,13 +3,13 @@ import type { TableColumnsType, TablePaginationConfig } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAllUsers, queryUsers } from '../../api/user-account'
 import type { QueryUsersParams, UserAccount } from '../../api/user-account'
+import { useAuth } from '../../store/useAuth'
 
 type SearchValues = {
   userId?: string
   username?: string
 }
 
-const CURRENT_USER_ID = 'root1'
 const DEFAULT_PAGE_SIZE = 10
 
 function normalizeSearchValues(values: SearchValues) {
@@ -21,6 +21,7 @@ function normalizeSearchValues(values: SearchValues) {
 
 function UserAccountPage() {
   const [form] = Form.useForm<SearchValues>()
+  const { userId } = useAuth()
   const [users, setUsers] = useState<UserAccount[]>([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState<TablePaginationConfig>({
@@ -51,7 +52,7 @@ function UserAccountPage() {
     setLoading(true)
 
     try {
-      const data = await getAllUsers({ currentUserId: CURRENT_USER_ID })
+      const data = await getAllUsers({ currentUserId: userId })
 
       setUsers(data)
       setPagination((previous) => ({
@@ -64,7 +65,7 @@ function UserAccountPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   const fetchQueryUsers = useCallback(
     async (values: SearchValues, page = 1, pageSize = DEFAULT_PAGE_SIZE) => {
@@ -79,7 +80,7 @@ function UserAccountPage() {
 
       try {
         const params: QueryUsersParams = {
-          currentUserId: CURRENT_USER_ID,
+          currentUserId: userId,
           page,
           pageSize,
           ...searchValues,
@@ -98,7 +99,7 @@ function UserAccountPage() {
         setLoading(false)
       }
     },
-    [fetchAllUsers],
+    [fetchAllUsers, userId],
   )
 
   useEffect(() => {
@@ -145,10 +146,12 @@ function UserAccountPage() {
             <Col>
               <Form.Item>
                 <Space>
-                  <Button type="primary" htmlType="submit">
+                  <Button type="primary" htmlType="submit" danger>
                     查询
                   </Button>
-                  <Button onClick={handleReset}>重置</Button>
+                  <Button onClick={handleReset} danger>
+                    重置
+                  </Button>
                 </Space>
               </Form.Item>
             </Col>
