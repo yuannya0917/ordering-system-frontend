@@ -9,57 +9,62 @@ import UserAccountPage from '../pages/user-account/UserAccountPage'
 import MerchantLogin from '../pages/login/MerchantLogin'
 import { ProtectedRoute } from './ProtectedRoute'
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <Navigate to="/login" replace />,
+    },
+    {
+      path: '/login',
+      element: <MerchantLogin />,
+    },
+    {
+      path: '/home',
+      element: (
+        <ProtectedRoute>
+          <MerchantHome />
+        </ProtectedRoute>
+      ),
+      children: [
+        {
+          index: true,
+          element: <Navigate to="/home/users" replace />,
+        },
+        {
+          path: 'users',
+          element: <UserAccountPage />,
+        },
+        {
+          path: 'menu',
+          element: <MenuManagePage />,
+        },
+        {
+          path: 'menu/cuisine',
+          element: <CuisineManagePage />,
+        },
+        {
+          path: 'orders',
+          element: <OrderManagePage />,
+        },
+        {
+          path: 'comments',
+          element: <CommentManagePage />,
+        },
+        {
+          path: 'revenue',
+          element: <RevenuePage />,
+        },
+      ],
+    },
+    {
+      path: '*',
+      element: <Navigate to="/login" replace />,
+    },
+  ],
   {
-    path: '/',
-    element: <Navigate to="/login" replace />,
+    basename: import.meta.env.BASE_URL,
   },
-  {
-    path: '/login',
-    element: <MerchantLogin />,
-  },
-  {
-    path: '/home',
-    element: (
-      <ProtectedRoute>
-        <MerchantHome />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        index: true,
-        element: <Navigate to="/home/users" replace />,
-      },
-      {
-        path: 'users',
-        element: <UserAccountPage />,
-      },
-      {
-        path: 'menu',
-        element: <MenuManagePage />,
-      },
-      {
-        path: 'menu/cuisine',
-        element: <CuisineManagePage />,
-      },
-      {
-        path: 'orders',
-        element: <OrderManagePage />,
-      },
-      {
-        path: 'comments',
-        element: <CommentManagePage />,
-      },
-      {
-        path: 'revenue',
-        element: <RevenuePage />,
-      },
-    ],
-  },
-  {
-    path: '*',
-    element: <Navigate to="/login" replace />,
-  },
-])
+)
 
 export default router

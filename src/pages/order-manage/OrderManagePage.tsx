@@ -1,87 +1,95 @@
-import { Button, Radio, Row, Space, Table, Tag, Typography, message } from 'antd'
+import { Button, Col, Form, Input, Radio, Row, Space, Table, Tag, Typography, message } from 'antd'
 import type { RadioChangeEvent, TableColumnsType } from 'antd'
-import { useCallback, useMemo, useState } from 'react'
-import { updateOrderStatus } from '../../api/order-manage'
+import { useEffect, useMemo, useState } from 'react'
+import { getAllOrders, getOrderDetails, updateOrderStatus } from '../../api/order-manage'
+import type {
+  GetAllOrdersParams,
+  OrderDetailItem,
+  OrderItem,
+  OrderStatusCode,
+} from '../../api/order-manage'
 import './OrderManagePage.css'
 
-type OrderStatus = '未接单' | '进行中' | '已完成'
-type OrderStatusFilter = '全部' | OrderStatus
-type OrderStatusCode = '0' | '1' | '2'
+type OrderStatusFilter = 'all' | OrderStatusCode
 
-type OrderCuisine = {
-  name: string
-  count: number
+type SearchValues = {
+  userId?: string
 }
 
-type OrderRecord = {
+type OrderRecord = OrderItem & {
   key: string
-  orderNo: string
-  cuisines: OrderCuisine[]
-  orderTime: string
-  totalPrice: number
-  status: OrderStatus
+  details: OrderDetailItem[]
 }
 
-const initialOrderData: OrderRecord[] = [
+const statusLabelMap: Record<OrderStatusCode, string> = {
+  '0': '待确认',
+  '1': '已接单',
+  '2': '已完成',
+}
+
+const statusColorMap: Record<OrderStatusCode, string> = {
+  '0': 'orange',
+  '1': 'processing',
+  '2': 'success',
+}
+
+const statusOptions: Array<{ label: string; value: OrderStatusFilter }> = [
+  { label: '全部', value: 'all' },
+  { label: '待确认', value: '0' },
+  { label: '已接单', value: '1' },
+  { label: '已完成', value: '2' },
+]
+
+const inlineOrderDetailColumns: TableColumnsType<OrderDetailItem> = [
+  { title: '菜品名称', dataIndex: 'dishName' },
+  { title: '数量', dataIndex: 'dishNum', width: 72, align: 'center' },
   {
-    key: '1',
-    orderNo: 'DD20260509001',
-    cuisines: [
-      { name: '招牌黑椒牛柳饭', count: 1 },
-      { name: '柠檬气泡茶', count: 2 },
-    ],
-    orderTime: '2026-05-09 12:18',
-    totalPrice: 62,
-    status: '进行中',
-  },
-  {
-    key: '2',
-    orderNo: 'DD20260509002',
-    cuisines: [
-      { name: '番茄肥牛面', count: 1 },
-      { name: '小吃拼盘', count: 1 },
-    ],
-    orderTime: '2026-05-09 12:24',
-    totalPrice: 46,
-    status: '未接单',
-  },
-  {
-    key: '3',
-    orderNo: 'DD20260509003',
-    cuisines: [
-      { name: '招牌黑椒牛柳饭', count: 2 },
-      { name: '柠檬气泡茶', count: 1 },
-    ],
-    orderTime: '2026-05-09 11:42',
-    totalPrice: 89,
-    status: '已完成',
-  },
-  {
-    key: '4',
-    orderNo: 'DD20260509004',
-    cuisines: [
-      { name: '柠檬气泡茶', count: 1 },
-      { name: '小吃拼盘', count: 2 },
-      { name: '番茄肥牛面', count: 1 },
-    ],
-    orderTime: '2026-05-09 12:31',
-    totalPrice: 74,
-    status: '未接单',
+    title: '总价',
+    dataIndex: 'totalPrice',
+    width: 100,
+    align: 'right',
+    render: (totalPrice: number) => `¥${Number(totalPrice || 0).toFixed(2)}`,
   },
 ]
 
-const statusColorMap: Record<OrderStatus, string> = {
-  未接单: 'orange',
-  进行中: 'blue',
-  已完成: 'green',
+function normalizeSearchValues(values: SearchValues, statusFilter: OrderStatusFilter): GetAllOrdersParams {
+  return {
+    userId: values.userId?.trim() || undefined,
+    orderStatus: statusFilter === 'all' ? undefined : statusFilter,
+  }
 }
 
-const statusOptions: OrderStatusFilter[] = ['全部', '未接单', '进行中', '已完成']
+async function toOrderRecords(data: OrderItem[]): Promise<OrderRecord[]> {
+  return Promise.all(
+    data.map(async (order) => {
+      try {
+        const details = await getOrderDetails(order.orderId)
+        return { ...order, key: order.orderId, details }
+      } catch {
+        return { ...order, key: order.orderId, details: [] }
+      }
+    }),
+  )
+}
 
-const statusCodeMap: Record<OrderStatus, OrderStatusCode> = {
-  未接单: '0',
-  进行中: '1',
-  已完成: '2',
+function formatOrderTime(orderTime: string) {
+  return orderTime.replace('T', ' ')
+}
+
+function renderOrderDetails(details: OrderDetailItem[]) {
+  if (!details.length) {
+    return '-'
+  }
+
+  return (
+    <Table<OrderDetailItem>
+      rowKey={(record) => `${record.orderId}-${record.dishId}`}
+      size="small"
+      dataSource={details}
+      columns={inlineOrderDetailColumns}
+      pagination={false}
+    />
+  )
 }
 
 function createOrderColumns(
@@ -91,70 +99,59 @@ function createOrderColumns(
 ): TableColumnsType<OrderRecord> {
   return [
     {
-      title: '订单编号',
-      dataIndex: 'orderNo',
-      width: 180,
-      render: (orderNo: string) => (
-        <Typography.Text style={{ color: '#5f6368' }}>
-          {orderNo}
-        </Typography.Text>
-      ),
+      title: '订单ID',
+      dataIndex: 'orderId',
+      width: 140,
+      render: (orderId: string) => <Typography.Text>{orderId}</Typography.Text>,
+    },
+    { title: '用户ID', dataIndex: 'userId', width: 150 },
+    {
+      title: '订单详情',
+      dataIndex: 'details',
+      width: 380,
+      render: (details: OrderDetailItem[]) => renderOrderDetails(details),
     },
     {
-      title: '菜品列表',
-      dataIndex: 'cuisines',
-      render: (cuisines: OrderCuisine[]) => (
-        <Space direction="vertical" size={6} style={{ width: '100%' }}>
-          {cuisines.map((cuisine) => (
-            <div
-              key={cuisine.name}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                maxWidth: 320,
-              }}
-            >
-              <Typography.Text>{cuisine.name}</Typography.Text>
-              <Typography.Text type="secondary">x{cuisine.count}</Typography.Text>
-            </div>
-          ))}
-        </Space>
+      title: '订单金额',
+      dataIndex: 'orderPrice',
+      width: 120,
+      align: 'right',
+      render: (orderPrice: number) => (
+        <Typography.Text strong>¥{Number(orderPrice || 0).toFixed(2)}</Typography.Text>
       ),
     },
     {
       title: '下单时间',
       dataIndex: 'orderTime',
-      width: 170,
+      width: 180,
       render: (orderTime: string) => (
-        <Typography.Text type="secondary">{orderTime}</Typography.Text>
+        <Typography.Text type="secondary">{formatOrderTime(orderTime)}</Typography.Text>
       ),
     },
     {
-      title: '总价格',
-      dataIndex: 'totalPrice',
-      width: 140,
-      align: 'right',
-      render: (totalPrice: number) => (
-        <Typography.Text strong>￥{totalPrice.toFixed(2)}</Typography.Text>
-      ),
+      title: '订单备注',
+      dataIndex: 'orderNote',
+      render: (orderNote: string) => orderNote || '-',
     },
     {
-      title: '交易状态',
-      dataIndex: 'status',
+      title: '订单状态',
+      dataIndex: 'orderStatus',
       width: 120,
-      render: (status: OrderStatus) => <Tag color={statusColorMap[status]}>{status}</Tag>,
+      render: (orderStatus: OrderStatusCode) => (
+        <Tag color={statusColorMap[orderStatus]}>{statusLabelMap[orderStatus]}</Tag>
+      ),
     },
     {
       title: '操作',
-      width: 140,
+      width: 120,
       render: (_, record) => {
-        if (record.status === '未接单') {
+        if (record.orderStatus === '0') {
           return (
             <Button
               type="primary"
               size="small"
-              loading={updatingOrderId === record.orderNo}
-              onClick={() => onAccept(record.orderNo)}
+              loading={updatingOrderId === record.orderId}
+              onClick={() => onAccept(record.orderId)}
               danger
             >
               接单
@@ -162,12 +159,12 @@ function createOrderColumns(
           )
         }
 
-        if (record.status === '进行中') {
+        if (record.orderStatus === '1') {
           return (
             <Button
               size="small"
-              loading={updatingOrderId === record.orderNo}
-              onClick={() => onComplete(record.orderNo)}
+              loading={updatingOrderId === record.orderId}
+              onClick={() => onComplete(record.orderId)}
               danger
             >
               完成订单
@@ -175,75 +172,95 @@ function createOrderColumns(
           )
         }
 
-        return (
-          <Button size="small" danger>
-            查看详情
-          </Button>
-        )
+        return '-'
       },
     },
   ]
 }
 
 function OrderManagePage() {
-  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>('全部')
-  const [orders, setOrders] = useState<OrderRecord[]>(initialOrderData)
+  const [form] = Form.useForm<SearchValues>()
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>('all')
+  const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [loading, setLoading] = useState(false)
   const [updatingOrderId, setUpdatingOrderId] = useState<string>()
 
-  const filteredOrderData = useMemo(() => {
-    if (statusFilter === '全部') {
-      return orders
+  const fetchOrders = async (values: SearchValues = form.getFieldsValue(), nextStatus = statusFilter) => {
+    setLoading(true)
+
+    try {
+      const data = await getAllOrders(normalizeSearchValues(values, nextStatus))
+      setOrders(await toOrderRecords(data))
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '获取订单列表失败')
+    } finally {
+      setLoading(false)
     }
-
-    return orders.filter((order) => order.status === statusFilter)
-  }, [orders, statusFilter])
-
-  const handleStatusChange = (event: RadioChangeEvent) => {
-    setStatusFilter(event.target.value)
   }
 
-  const updateStatus = useCallback(
-    async (orderId: string, status: OrderStatus, successText: string) => {
-      setUpdatingOrderId(orderId)
-      try {
-        await updateOrderStatus({
-          orderId,
-          orderStatus: statusCodeMap[status],
-        })
-        setOrders((data) =>
-          data.map((order) => (order.orderNo === orderId ? { ...order, status } : order)),
-        )
-        message.success(successText)
-      } catch (error) {
-        message.error(error instanceof Error ? error.message : '修改订单状态失败')
-      } finally {
-        setUpdatingOrderId(undefined)
-      }
-    },
-    [],
-  )
+  useEffect(() => {
+    void fetchOrders({})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const handleAccept = useCallback(
-    (orderId: string) => {
-      void updateStatus(orderId, '进行中', '已接单')
-    },
-    [updateStatus],
-  )
+  const handleStatusChange = (event: RadioChangeEvent) => {
+    const nextStatus = event.target.value as OrderStatusFilter
+    setStatusFilter(nextStatus)
+    void fetchOrders(form.getFieldsValue(), nextStatus)
+  }
 
-  const handleComplete = useCallback(
-    (orderId: string) => {
-      void updateStatus(orderId, '已完成', '订单已完成')
-    },
-    [updateStatus],
-  )
+  const handleReset = () => {
+    form.resetFields()
+    setStatusFilter('all')
+    void fetchOrders({}, 'all')
+  }
+
+  const updateStatus = async (orderId: string, orderStatus: OrderStatusCode, successText: string) => {
+    setUpdatingOrderId(orderId)
+
+    try {
+      await updateOrderStatus({ orderId, orderStatus })
+      await fetchOrders()
+      message.success(successText)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '修改订单状态失败')
+    } finally {
+      setUpdatingOrderId(undefined)
+    }
+  }
 
   const orderColumns = useMemo(
-    () => createOrderColumns(handleAccept, handleComplete, updatingOrderId),
-    [handleAccept, handleComplete, updatingOrderId],
+    () =>
+      createOrderColumns(
+        (orderId) => void updateStatus(orderId, '1', '已接单'),
+        (orderId) => void updateStatus(orderId, '2', '订单已完成'),
+        updatingOrderId,
+      ),
+    [updatingOrderId],
   )
 
   return (
     <>
+      <Row style={{ width: '100%', marginBottom: 16 }}>
+        <Form form={form} onFinish={(values) => fetchOrders(values)} style={{ width: '100%' }}>
+          <Row justify="space-between">
+            <Col>
+              <Space>
+                <Form.Item style={{ marginBottom: 0 }} label="用户ID" name="userId">
+                  <Input allowClear placeholder="请输入用户ID" />
+                </Form.Item>
+                <Button type="primary" htmlType="submit" loading={loading} danger>
+                  查询
+                </Button>
+                <Button onClick={handleReset} danger>
+                  重置
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+        </Form>
+      </Row>
+
       <Row style={{ width: '100%', marginBottom: 16 }}>
         <Radio.Group
           className="order-status-filter"
@@ -251,17 +268,16 @@ function OrderManagePage() {
           buttonStyle="solid"
           value={statusFilter}
           onChange={handleStatusChange}
-          options={statusOptions.map((status) => ({
-            label: status,
-            value: status,
-          }))}
+          options={statusOptions}
         />
       </Row>
 
       <Row style={{ width: '100%' }}>
-        <Table
+        <Table<OrderRecord>
+          rowKey="orderId"
           style={{ width: '100%' }}
-          dataSource={filteredOrderData}
+          loading={loading}
+          dataSource={orders}
           columns={orderColumns}
           pagination={{ pageSize: 8 }}
         />
