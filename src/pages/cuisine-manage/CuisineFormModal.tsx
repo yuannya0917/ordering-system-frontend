@@ -1,5 +1,5 @@
 import { UploadOutlined } from '@ant-design/icons'
-import { Button, Form, Input, InputNumber, Modal, Upload } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Select, Upload } from 'antd'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { useEffect } from 'react'
 
@@ -19,6 +19,8 @@ type CuisineFormModalProps = {
   onCancel: () => void
   onSubmit: (values: CuisineFormValues) => void | Promise<void>
   confirmLoading?: boolean
+  menuOptions?: Array<{ label: string; value: string }>
+  menuOptionsLoading?: boolean
   dishIdDisabled?: boolean
 }
 
@@ -33,6 +35,8 @@ function CuisineFormModal({
   onCancel,
   onSubmit,
   confirmLoading,
+  menuOptions,
+  menuOptionsLoading,
   dishIdDisabled,
 }: CuisineFormModalProps) {
   const [form] = Form.useForm<CuisineFormValues>()
@@ -91,7 +95,14 @@ function CuisineFormModal({
           name="menuId"
           rules={[{ required: true, message: '请输入所属菜单ID' }]}
         >
-          <Input placeholder="请输入所属菜单ID" />
+          <Select
+            allowClear
+            showSearch
+            loading={menuOptionsLoading}
+            options={menuOptions}
+            optionFilterProp="label"
+            placeholder="请选择所属菜单ID"
+          />
         </Form.Item>
         <Form.Item
           label="菜品封面"

@@ -65,6 +65,31 @@
   background: transparent;
 }
 
+.merchant-sidebar .ant-menu-item,
+.merchant-sidebar .ant-menu-submenu-title {
+  color: #5b2a22;
+}
+
+.merchant-sidebar .ant-menu-item:hover,
+.merchant-sidebar .ant-menu-submenu-title:hover {
+  color: #b42318 !important;
+  background: #fff1ed !important;
+}
+
+.merchant-sidebar .ant-menu-item-selected {
+  color: #b42318 !important;
+  background: #ffe4df !important;
+  font-weight: 700;
+}
+
+.merchant-sidebar .ant-menu-submenu-selected > .ant-menu-submenu-title {
+  color: #b42318 !important;
+}
+
+.merchant-sidebar .ant-menu-submenu-arrow {
+  color: #b42318;
+}
+
 .merchant-content {
   flex: 1;
   min-width: 0;

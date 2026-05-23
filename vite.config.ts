@@ -10,6 +10,10 @@ export default defineConfig({
         target: 'http://10.100.147.122:8081',
         changeOrigin: true,
       },
+      '/images': {
+        target: 'http://10.100.147.122:8081',
+        changeOrigin: true,
+      },
     },
   },
 })

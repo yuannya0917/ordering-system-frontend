@@ -1,0 +1,24 @@
+.order-status-filter .ant-radio-button-wrapper {
+  border-color: #f2b8ae;
+  color: #7a271a;
+  background: #fff7f5;
+}
+
+.order-status-filter .ant-radio-button-wrapper:hover {
+  color: #b42318;
+}
+
+.order-status-filter .ant-radio-button-wrapper-checked {
+  border-color: #d92d20 !important;
+  color: #ffffff !important;
+  background: #d92d20 !important;
+}
+
+.order-status-filter .ant-radio-button-wrapper-checked:hover {
+  color: #ffffff !important;
+  background: #b42318 !important;
+}
+
+.order-status-filter .ant-radio-button-wrapper-checked::before {
+  background-color: #d92d20 !important;
+}

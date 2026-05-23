@@ -51,16 +51,10 @@ function MerchantLogin() {
 
   return (
     <main className="merchant-login-page">
-      <section className="login-hero">
-        <div className="login-brand">C</div>
-        <Typography.Text className="login-system-name">
-          餐厅点餐系统
-        </Typography.Text>
-        <Typography.Title level={1}>商家管理端</Typography.Title>
-        <Typography.Paragraph>
-          管理菜品、订单和顾客评价，及时处理顾客点餐需求。
-        </Typography.Paragraph>
-      </section>
+      <div className="login-title-block">
+        <Typography.Title level={1}>美味餐厅</Typography.Title>
+      </div>
+
 
       <section className="login-panel" aria-label="商家登录">
         <Card className="login-card" bordered={false}>

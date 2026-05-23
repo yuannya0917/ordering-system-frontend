@@ -2,19 +2,15 @@ import {
   Button,
   Col,
   Form,
-  Image,
   Input,
   Modal,
   Popconfirm,
   Row,
   Space,
   Table,
-  Upload,
   message,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
-import type { UploadFile } from 'antd/es/upload/interface'
 import { useEffect, useState } from 'react'
 import { addMenu, deleteMenu, getMenuList, updateMenu } from '../../api/menu-management'
 import type { AddMenuParams, MenuItem, UpdateMenuParams } from '../../api/menu-management'
@@ -31,7 +27,6 @@ type MenuFormValues = {
   menuId: string
   menuName: string
   remark?: string
-  coverFile?: UploadFile[]
 }
 
 function formatLocalDateTime(date: Date) {
@@ -48,20 +43,16 @@ function normalizeSearchValues(values: SearchValues) {
   }
 }
 
-function toMenuRecords(data: MenuItem[]): MenuRecord[] {
-  return data.map((menu) => ({ ...menu, key: menu.menuId }))
-}
-
-function getCoverUrl(cover?: string | null) {
-  if (!cover) {
-    return ''
-  }
-
-  return cover
-}
-
-function getUploadFileList(event: { fileList?: UploadFile[] }) {
-  return event?.fileList ?? []
+async function toMenuRecords(data: MenuItem[]): Promise<MenuRecord[]> {
+  return Promise.all(
+    data.map(async (menu) => {
+      try {
+        return { ...menu, key: menu.menuId }
+      } catch {
+        return { ...menu, key: menu.menuId }
+      }
+    }),
+  )
 }
 
 function MenuManagePage() {
@@ -73,38 +64,29 @@ function MenuManagePage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // useEffect(() => {
-  //   const fetchMenuList = async () => {
-  //     setLoading(true)
+   useEffect(() => {
+     const fetchMenuList = async () => {
+       setLoading(true)
 
-  //     try {
-  //       const data = await getMenuList()
-  //       setMenuData(toMenuRecords(data))
-  //     } catch (error) {
-  //       message.error(error instanceof Error ? error.message : '获取菜单列表失败')
-  //     } finally {
-  //       setLoading(false)
-  //     }
-  //   }
+       try {
+         const data = await getMenuList()
+         setMenuData(await toMenuRecords(data))
+       } catch (error) {
+       message.error(error instanceof Error ? error.message : '获取菜单列表失败')
+     } finally {
+       setLoading(false)
+     }
+   }
 
-  //   void fetchMenuList()
-  // }, [])
-
-  useEffect(()=>{
-    const fetchMenuList=async()=>{
-      const data=await getMenuList()
-      setMenuData(toMenuRecords(data))
-    }
-
-    fetchMenuList()
-  },[])
+   void fetchMenuList()
+ }, [])
 
   const handleSearch = async (values: SearchValues) => {
     setLoading(true)
 
     try {
       const data = await getMenuList(normalizeSearchValues(values))
-      setMenuData(toMenuRecords(data))
+      setMenuData(await toMenuRecords(data))
     } catch (error) {
       message.error(error instanceof Error ? error.message : '获取菜单列表失败')
     } finally {
@@ -128,7 +110,6 @@ function MenuManagePage() {
       menuId: menu.menuId,
       menuName: menu.menuName,
       remark: menu.remark ?? undefined,
-      coverFile: [],
     })
     setModalOpen(true)
   }
@@ -187,25 +168,7 @@ function MenuManagePage() {
   }
 
   const menuColumns: TableColumnsType<MenuRecord> = [
-    {
-      title: '菜单封面',
-      dataIndex: 'cover',
-      render: (cover: string | null | undefined) => {
-        const coverUrl = getCoverUrl(cover)
 
-        return coverUrl ? (
-          <Image
-            src={coverUrl}
-            alt="菜单封面"
-            width={64}
-            height={48}
-            style={{ objectFit: 'cover', borderRadius: 4 }}
-          />
-        ) : (
-          '-'
-        )
-      },
-    },
     { title: '菜单ID', dataIndex: 'menuId' },
     { title: '菜单名称', dataIndex: 'menuName' },
     { title: '备注', dataIndex: 'remark' },
@@ -296,18 +259,6 @@ function MenuManagePage() {
           </Form.Item>
           <Form.Item label="备注" name="remark">
             <Input.TextArea rows={3} placeholder="请输入备注" />
-          </Form.Item>
-          <Form.Item
-            label="菜单封面"
-            name="coverFile"
-            valuePropName="fileList"
-            getValueFromEvent={getUploadFileList}
-          >
-            <Upload accept="image/*" beforeUpload={() => false} listType="picture" maxCount={1}>
-              <Button icon={<UploadOutlined />} danger>
-                选择图片
-              </Button>
-            </Upload>
           </Form.Item>
         </Form>
       </Modal>

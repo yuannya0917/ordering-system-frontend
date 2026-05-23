@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd'
 import { useEffect, useState } from 'react'
 import { addDish, deleteDish, getDishList, updateDish } from '../../api/cuisine-manage'
 import type { AddDishParams, DishItem } from '../../api/cuisine-manage'
+import { getMenuList } from '../../api/menu-management'
 import { uploadDishImage } from '../../api/pic'
 import CuisineFormModal from './CuisineFormModal'
 import type { CuisineFormValues } from './CuisineFormModal'
@@ -17,6 +18,11 @@ type SearchValues = {
   dishId?: string
   dishName?: string
   menuId?: string
+}
+
+type MenuOption = {
+  label: string
+  value: string
 }
 
 function normalizeSearchValues(values: SearchValues) {
@@ -49,6 +55,8 @@ function CuisineManagePage() {
   const [cuisineData, setCuisineData] = useState<CuisineRecord[]>([])
   const [editingCuisine, setEditingCuisine] = useState<CuisineRecord | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [menuOptions, setMenuOptions] = useState<MenuOption[]>([])
+  const [menuOptionsLoading, setMenuOptionsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -87,13 +95,33 @@ function CuisineManagePage() {
     void handleSearch({})
   }
 
-  const handleAdd = () => {
+  const fetchMenuOptions = async () => {
+    setMenuOptionsLoading(true)
+
+    try {
+      const data = await getMenuList()
+      setMenuOptions(
+        data.map((menu) => ({
+          label: menu.menuName ? `${menu.menuName}（${menu.menuId}）` : menu.menuId,
+          value: menu.menuId,
+        })),
+      )
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '获取菜单列表失败')
+    } finally {
+      setMenuOptionsLoading(false)
+    }
+  }
+
+  const handleAdd = async () => {
     setEditingCuisine(null)
+    await fetchMenuOptions()
     setModalOpen(true)
   }
 
-  const handleEdit = (record: CuisineRecord) => {
+  const handleEdit = async (record: CuisineRecord) => {
     setEditingCuisine(record)
+    await fetchMenuOptions()
     setModalOpen(true)
   }
 
@@ -188,7 +216,6 @@ function CuisineManagePage() {
     },
     { title: '菜品介绍', dataIndex: 'dishIntroduction' },
     { title: '所属菜单', dataIndex: 'menuName' },
-    { title: '所属菜单ID', dataIndex: 'menuId' },
     {
       title: '操作',
       render: (_, record) => (
@@ -223,9 +250,6 @@ function CuisineManagePage() {
                 </Form.Item>
                 <Form.Item style={{ marginBottom: 0 }} label="菜品名称" name="dishName">
                   <Input allowClear placeholder="请输入菜品名称" />
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 0 }} label="菜单ID" name="menuId">
-                  <Input allowClear placeholder="请输入菜单ID" />
                 </Form.Item>
                 <Button type="primary" htmlType="submit" danger>
                   查询
@@ -262,6 +286,8 @@ function CuisineManagePage() {
         onCancel={() => setModalOpen(false)}
         onSubmit={handleSubmit}
         confirmLoading={saving}
+        menuOptions={menuOptions}
+        menuOptionsLoading={menuOptionsLoading}
         dishIdDisabled={Boolean(editingCuisine)}
       />
     </>

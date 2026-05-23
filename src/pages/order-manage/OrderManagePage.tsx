@@ -2,6 +2,7 @@ import { Button, Radio, Row, Space, Table, Tag, Typography, message } from 'antd
 import type { RadioChangeEvent, TableColumnsType } from 'antd'
 import { useCallback, useMemo, useState } from 'react'
 import { updateOrderStatus } from '../../api/order-manage'
+import './OrderManagePage.css'
 
 type OrderStatus = '未接单' | '进行中' | '已完成'
 type OrderStatusFilter = '全部' | OrderStatus
@@ -20,8 +21,6 @@ type OrderRecord = {
   totalPrice: number
   status: OrderStatus
 }
-
-type OrderCountMap = Record<OrderStatusFilter, number>
 
 const initialOrderData: OrderRecord[] = [
   {
@@ -191,15 +190,6 @@ function OrderManagePage() {
   const [orders, setOrders] = useState<OrderRecord[]>(initialOrderData)
   const [updatingOrderId, setUpdatingOrderId] = useState<string>()
 
-  const orderCounts = useMemo<OrderCountMap>(() => {
-    return {
-      全部: orders.length,
-      未接单: orders.filter((order) => order.status === '未接单').length,
-      进行中: orders.filter((order) => order.status === '进行中').length,
-      已完成: orders.filter((order) => order.status === '已完成').length,
-    }
-  }, [orders])
-
   const filteredOrderData = useMemo(() => {
     if (statusFilter === '全部') {
       return orders
@@ -256,12 +246,13 @@ function OrderManagePage() {
     <>
       <Row style={{ width: '100%', marginBottom: 16 }}>
         <Radio.Group
+          className="order-status-filter"
           optionType="button"
           buttonStyle="solid"
           value={statusFilter}
           onChange={handleStatusChange}
           options={statusOptions.map((status) => ({
-            label: `${status} ${orderCounts[status]}`,
+            label: status,
             value: status,
           }))}
         />
