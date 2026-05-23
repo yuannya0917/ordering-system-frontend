@@ -1,7 +1,12 @@
 import { Button, Col, Form, Input, Radio, Row, Space, Table, Tag, Typography, message } from 'antd'
 import type { RadioChangeEvent, TableColumnsType } from 'antd'
-import { useEffect, useMemo, useState } from 'react'
-import { getAllOrders, getOrderDetails, updateOrderStatus } from '../../api/order-manage'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  getAllOrders,
+  getOrderDetails,
+  subscribeMerchantNewOrders,
+  updateOrderStatus,
+} from '../../api/order-manage'
 import type {
   GetAllOrdersParams,
   OrderDetailItem,
@@ -184,34 +189,38 @@ function OrderManagePage() {
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [updatingOrderId, setUpdatingOrderId] = useState<string>()
+  const statusFilterRef = useRef<OrderStatusFilter>('all')
 
-  const fetchOrders = async (values: SearchValues = form.getFieldsValue(), nextStatus = statusFilter) => {
+  const fetchOrders = useCallback(async (values?: SearchValues, nextStatus?: OrderStatusFilter) => {
     setLoading(true)
 
     try {
-      const data = await getAllOrders(normalizeSearchValues(values, nextStatus))
+      const effectiveValues = values ?? form.getFieldsValue()
+      const effectiveStatus = nextStatus ?? statusFilterRef.current
+      const data = await getAllOrders(normalizeSearchValues(effectiveValues, effectiveStatus))
       setOrders(await toOrderRecords(data))
     } catch (error) {
       message.error(error instanceof Error ? error.message : '获取订单列表失败')
     } finally {
       setLoading(false)
     }
-  }
+  }, [form])
 
   useEffect(() => {
     void fetchOrders({})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchOrders])
 
   const handleStatusChange = (event: RadioChangeEvent) => {
     const nextStatus = event.target.value as OrderStatusFilter
     setStatusFilter(nextStatus)
+    statusFilterRef.current = nextStatus
     void fetchOrders(form.getFieldsValue(), nextStatus)
   }
 
   const handleReset = () => {
     form.resetFields()
     setStatusFilter('all')
+    statusFilterRef.current = 'all'
     void fetchOrders({}, 'all')
   }
 
@@ -238,6 +247,21 @@ function OrderManagePage() {
       ),
     [updatingOrderId],
   )
+
+  useEffect(() => {
+    const unsubscribe = subscribeMerchantNewOrders({
+      onMessage: () => {
+        void fetchOrders()
+      },
+      onError: () => {
+        message.warning('')
+      },
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [fetchOrders])
 
   return (
     <>

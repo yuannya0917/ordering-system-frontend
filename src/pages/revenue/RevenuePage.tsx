@@ -1,23 +1,51 @@
-import { Button, Card, Col, DatePicker, Form, Row, Space, Statistic, message } from 'antd'
+import { Button, Card, Col, DatePicker, Form, Row, Space, Statistic, Table, Tag, message } from 'antd'
+import type { TableColumnsType } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
-import { getTotalAmount } from '../../api/revenue'
-import type { GetTotalAmountParams, TotalAmountResult } from '../../api/revenue'
+import { getAllOrders, getTotalAmount } from '../../api/revenue'
+import type { GetAllOrdersParams, GetTotalAmountParams, OrderItem, OrderStatusCode, TotalAmountResult } from '../../api/revenue'
 
 type RevenueSearchValues = {
   timeRange?: [Dayjs, Dayjs]
   orderStatus?: string
 }
 
+type OrderRecord = OrderItem & {
+  key: string
+}
+
 const { RangePicker } = DatePicker
 
-function normalizeSearchValues(values: RevenueSearchValues): GetTotalAmountParams {
+
+function normalizeSearchValues(values: RevenueSearchValues): GetTotalAmountParams & GetAllOrdersParams {
   return {
     startTime: values.timeRange?.[0]?.format('YYYY-MM-DD HH:mm:ss'),
     endTime: values.timeRange?.[1]?.format('YYYY-MM-DD HH:mm:ss'),
-    orderStatus: values.orderStatus,
+    orderStatus: '2',
   }
 }
+
+function formatOrderTime(orderTime: string) {
+  return orderTime?.replace('T', ' ') || '-'
+}
+
+const orderColumns: TableColumnsType<OrderRecord> = [
+  { title: '订单ID', dataIndex: 'orderId', width: 140 },
+  { title: '用户ID', dataIndex: 'userId', width: 150 },
+  {
+    title: '下单时间',
+    dataIndex: 'orderTime',
+    width: 180,
+    render: (orderTime: string) => formatOrderTime(orderTime),
+  },
+    {
+    title: '订单金额',
+    dataIndex: 'orderPrice',
+    width: 120,
+    align: 'right',
+    render: (orderPrice: number) => `¥${Number(orderPrice || 0).toFixed(2)}`,
+  },
+]
 
 function RevenuePage() {
   const [form] = Form.useForm<RevenueSearchValues>()
@@ -27,34 +55,41 @@ function RevenuePage() {
     startTime: null,
     endTime: null,
   })
+  const [orderData, setOrderData] = useState<OrderRecord[]>([])
   const [loading, setLoading] = useState(false)
 
-  const fetchTotalAmount = async (values: RevenueSearchValues = {}) => {
+  const fetchRevenueData = async (values: RevenueSearchValues = {}) => {
     setLoading(true)
 
     try {
-      const data = await getTotalAmount(normalizeSearchValues(values))
-      setRevenueData(data)
+      const params = normalizeSearchValues(values)
+      const [totalAmountData, allOrders] = await Promise.all([
+        getTotalAmount(params),
+        getAllOrders(params),
+      ])
+
+      setRevenueData(totalAmountData)
+      setOrderData(allOrders.map((order) => ({ ...order, key: order.orderId })))
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '获取营业额失败')
+      message.error(error instanceof Error ? error.message : '获取营业数据失败')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    void fetchTotalAmount()
+    void fetchRevenueData()
   }, [])
 
   const handleReset = () => {
     form.resetFields()
-    void fetchTotalAmount()
+    void fetchRevenueData()
   }
 
   return (
     <>
       <Row style={{ width: '100%', marginBottom: 16 }}>
-        <Form form={form} onFinish={fetchTotalAmount} style={{ width: '100%' }}>
+        <Form form={form} onFinish={fetchRevenueData} style={{ width: '100%' }}>
           <Row justify="space-between">
             <Col>
               <Space>
@@ -83,6 +118,17 @@ function RevenuePage() {
           </Col>
         </Row>
       </Card>
+
+      <Row style={{ width: '100%' }}>
+        <Table<OrderRecord>
+          rowKey="orderId"
+          style={{ width: '100%' }}
+          loading={loading}
+          dataSource={orderData}
+          columns={orderColumns}
+          pagination={{ pageSize: 8 }}
+        />
+      </Row>
     </>
   )
 }

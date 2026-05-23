@@ -23,6 +23,7 @@ type SearchValues = {
 type MenuOption = {
   label: string
   value: string
+  menuName: string
 }
 
 function normalizeSearchValues(values: SearchValues) {
@@ -38,7 +39,7 @@ function toCuisineRecords(data: DishItem[]): CuisineRecord[] {
     ...dish,
     dishIntroduction: dish.dishIntroduction ?? undefined,
     key: dish.dishId,
-    menuId: dish.menuId ?? '',
+    menuId: dish.menuId == null ? '' : String(dish.menuId),
   }))
 }
 
@@ -85,6 +86,7 @@ function CuisineManagePage() {
       setCuisineData(toCuisineRecords(data))
     } catch (error) {
       message.error(error instanceof Error ? error.message : '获取菜品列表失败')
+      return []
     } finally {
       setLoading(false)
     }
@@ -95,22 +97,26 @@ function CuisineManagePage() {
     void handleSearch({})
   }
 
-  const fetchMenuOptions = async () => {
+  const fetchMenuOptions = async (): Promise<MenuOption[]> => {
     setMenuOptionsLoading(true)
 
     try {
       const data = await getMenuList()
-      setMenuOptions(
-        data.map((menu) => ({
-          label: menu.menuName ? `${menu.menuName}（${menu.menuId}）` : menu.menuId,
-          value: menu.menuId,
-        })),
-      )
+      const options = data.map((menu) => ({
+        label: menu.menuName || menu.menuId,
+        value: String(menu.menuId),
+        menuName: menu.menuName,
+      }))
+
+      setMenuOptions(options)
+      return options
     } catch (error) {
       message.error(error instanceof Error ? error.message : '获取菜单列表失败')
     } finally {
       setMenuOptionsLoading(false)
     }
+
+    return []
   }
 
   const handleAdd = async () => {
@@ -120,8 +126,17 @@ function CuisineManagePage() {
   }
 
   const handleEdit = async (record: CuisineRecord) => {
-    setEditingCuisine(record)
-    await fetchMenuOptions()
+    const options = await fetchMenuOptions()
+    const matchedMenuId =
+      record.menuId ||
+      options.find((option) => option.menuName === record.menuName || option.label === record.menuName)
+        ?.value ||
+      ''
+
+    setEditingCuisine({
+      ...record,
+      menuId: matchedMenuId,
+    })
     setModalOpen(true)
   }
 

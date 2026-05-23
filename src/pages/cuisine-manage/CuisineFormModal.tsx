@@ -43,7 +43,10 @@ function CuisineFormModal({
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue(initialValues ?? {})
+      form.setFieldsValue({
+        ...initialValues,
+        menuId: initialValues?.menuId == null ? undefined : String(initialValues.menuId),
+      })
       return
     }
 
