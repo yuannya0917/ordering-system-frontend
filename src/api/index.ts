@@ -1,4 +1,5 @@
-export { API_BASE_URL, api, request } from './request'
+export { API_BASE_URL } from '../config'
+export { api, request } from './request'
 export { login } from './login'
 export type { LoginParams, LoginResult, UserType as LoginUserType } from './login'
 export { getAllUsers, queryUsers } from './user-account'

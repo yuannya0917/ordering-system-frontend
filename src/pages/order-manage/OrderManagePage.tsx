@@ -251,7 +251,7 @@ function OrderManagePage() {
   useEffect(() => {
     const unsubscribe = subscribeMerchantNewOrders({
       onMessage: () => {
-        void fetchOrders()
+        void fetchOrders(form.getFieldsValue(), statusFilterRef.current)
       },
       onError: () => {
         message.warning('')
@@ -261,7 +261,7 @@ function OrderManagePage() {
     return () => {
       unsubscribe()
     }
-  }, [fetchOrders])
+  }, [fetchOrders, form])
 
   return (
     <>

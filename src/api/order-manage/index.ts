@@ -1,4 +1,5 @@
 import { api } from '../request'
+import { WS_URL } from '../../config'
 
 export type OrderStatusCode = '0' | '1' | '2'
 
@@ -66,12 +67,7 @@ export function subscribeMerchantNewOrders({
   onMessage,
   onError,
 }: SubscribeMerchantNewOrdersParams) {
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname
-  const wsPort = import.meta.env.VITE_WS_PORT || window.location.port
-  const wsPath = import.meta.env.VITE_WS_PATH || '/ws'
-  const wsUrl = `${wsProtocol}://${wsHost}:${wsPort}${wsPath}`
-  const ws = new WebSocket(wsUrl)
+  const ws = new WebSocket(WS_URL)
   const subscriptionId = `merchant-new-orders-${Date.now()}`
   let isConnected = false
   let shouldCloseAfterOpen = false

@@ -1,8 +1,4 @@
-const DEFAULT_API_BASE_URL = import.meta.env.PROD 
-  ? 'http://10.100.147.122:8081'  // 生产环境使用完整 URL
-  : '/api'  // 开发环境使用 proxy
-
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+import { API_BASE_URL } from '../config'
 
 type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -46,7 +42,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   })
 
   if (!response.ok) {
-    throw new Error(`请求失败：${response.status}`)
+    throw new Error(`Request failed: ${response.status}`)
   }
 
   const result = (await response.json()) as ApiResponse<T> | T
@@ -58,7 +54,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     result.code !== 0 &&
     result.code !== 200
   ) {
-    throw new Error(result.message || result.msg || '请求失败')
+    throw new Error(result.message || result.msg || 'Request failed')
   }
 
   if (typeof result === 'object' && result !== null && 'data' in result) {

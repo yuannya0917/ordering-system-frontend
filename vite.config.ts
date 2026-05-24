@@ -7,15 +7,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://10.100.147.122:8081',
+        target: 'http://10.100.167.245:8081',
         changeOrigin: true,
       },
       '/images': {
-        target: 'http://10.100.147.122:8081',
+        target: 'http://10.100.167.245:8081',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://10.100.147.122:8081',
+        target: 'ws://10.100.167.245:8081',
         changeOrigin: true,
         ws: true,
       },

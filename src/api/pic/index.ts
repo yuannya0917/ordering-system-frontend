@@ -1,4 +1,5 @@
-import { API_BASE_URL, api } from '../request'
+import { API_BASE_URL } from '../../config'
+import { api } from '../request'
 
 type ApiResponse<T> = {
   code?: number
@@ -35,7 +36,7 @@ function unwrapResponse<T>(result: ApiResponse<T> | T) {
     result.code !== 0 &&
     result.code !== 200
   ) {
-    throw new Error(result.message || result.msg || '请求失败')
+    throw new Error(result.message || result.msg || 'Request failed')
   }
 
   if (typeof result === 'object' && result !== null && 'data' in result) {
@@ -57,7 +58,7 @@ export async function uploadDishImage(params: UploadDishImageParams) {
   })
 
   if (!response.ok) {
-    throw new Error(`请求失败：${response.status}`)
+    throw new Error(`Request failed: ${response.status}`)
   }
 
   const result = (await response.json()) as ApiResponse<string>
